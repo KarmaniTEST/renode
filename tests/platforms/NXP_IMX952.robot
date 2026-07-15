@@ -120,6 +120,60 @@ System Manager Handles SCMI Base Clock And Power Protocols
     Should Be Equal As Numbers    ${power_get_status}    0
     Should Be Equal As Numbers    ${power_state}         0
 
+M7 System Manager Starts Cortex M7 Through NXP SCMI CPU Protocol
+    [Timeout]    30 seconds
+    Create Test Machine
+    Execute Command    m7 IsHalted true
+    Execute Command    sysbus LoadHEX @${M7_HEX}
+    Write Dword    ${MAGIC_ADDR}      0xA55A55A5
+    Write Dword    ${COMMAND_ADDR}    0x95200001
+
+    # M7-agent Base protocol version through MU5 + one SMT channel.
+    Write Dword    0x44611018    0x00004000
+    Write Dword    0x44610114    0x00000001
+    ${m7_base_status}=     Read Dword    0x4461101C
+    ${m7_base_version}=    Read Dword    0x44611020
+    Should Be Equal As Numbers    ${m7_base_status}     0
+    Should Be Equal As Numbers    ${m7_base_version}    0x00020000
+
+    # NXP CPU protocol 0x82 / RESET_VECTOR_SET (message 0x6).
+    # CPU ID 1 is the i.MX 952 Cortex-M7; START flag releases it from reset.
+    Write Dword    0x4461101C    1
+    Write Dword    0x44611020    0x40000000
+    Write Dword    0x44611024    0x00000000
+    Write Dword    0x44611028    0x00000000
+    Write Dword    0x44611018    0x00020806
+    Write Dword    0x44610114    0x00000001
+    ${vector_status}=    Read Dword    0x4461101C
+    Should Be Equal As Numbers    ${vector_status}    0
+
+    # INFO_GET (message 0xC) must report CPU_RUN_MODE_START.
+    Write Dword    0x4461101C    1
+    Write Dword    0x44611018    0x0002080C
+    Write Dword    0x44610114    0x00000001
+    ${info_status}=    Read Dword    0x4461101C
+    ${run_mode}=       Read Dword    0x44611020
+    Should Be Equal As Numbers    ${info_status}    0
+    Should Be Equal As Numbers    ${run_mode}       0
+
+    Execute Command    emulation RunFor "0.01"
+    ${status}=    Read Dword    ${STATUS_ADDR}
+    ${result}=    Read Dword    ${RESULT_ADDR}
+    Should Be Equal As Numbers    ${status}    0x4D370001
+    Should Be Equal As Numbers    ${result}    0x600D600D
+
+    # CPU_STOP (message 0x5) halts the real modeled M7.
+    Write Dword    0x4461101C    1
+    Write Dword    0x44611018    0x00020805
+    Write Dword    0x44610114    0x00000001
+    ${stop_status}=    Read Dword    0x4461101C
+    Should Be Equal As Numbers    ${stop_status}    0
+    Write Dword    0x4461101C    1
+    Write Dword    0x44611018    0x0002080C
+    Write Dword    0x44610114    0x00000001
+    ${stopped_mode}=    Read Dword    0x44611020
+    Should Be Equal As Numbers    ${stopped_mode}    2
+
 EdgeLock Enclave Provides SoC Identity Fuses And Firmware Status
     Create Test Machine
     # GET_INFO command, writing the 256-byte information block into DDR.
