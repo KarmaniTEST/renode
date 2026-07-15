@@ -4,11 +4,15 @@ $name?="nxp-imx952-evk"
 mach create $name
 machine LoadPlatformDescription $ORIGIN/../../platforms/boards/nxp_imx952_evk.repl
 
-# Hold the Cortex-M7 in reset until released through the same NXP SiP service
-# used by i.MX9 U-Boot's bootaux command.
-m7 IsHalted true
+# Apply the PSCI SMC conduit and hold the Cortex-M7 in reset through the same
+# reset-macro pattern used by upstream Renode ARMv8 U-Boot scripts.
+macro reset
+"""
+    a55Cluster.a55_0 PSCIEmulationMethod SMC
+    m7 IsHalted true
+"""
 
-a55Cluster.a55_0 PSCIEmulationMethod SMC
+# NXP i.MX9 auxiliary-core SiP service used by U-Boot's bootaux flow.
 a55Cluster.a55_0 AddCustomPSCIHandler 0xC2000005 """
 from Antmicro.Renode.Peripherals.CPU import RegisterValue
 
@@ -69,3 +73,5 @@ else:
         else:
             self.SetRegisterUlong(0, 0xFFFFFFFFFFFFFFFF)
 """
+
+runMacro $reset
