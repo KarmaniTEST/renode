@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Generate exact i.MX952 EVK SCMI Pinctrl permissions from pinned NXP source.
 
-The generator derives the 140 pin IDs and 135 daisy IDs from the MIMX952 device
-header, then extracts per-agent `pinPerms` and `daisyPerms` from the generated
-mx952evk SCMI configuration. Source SHA-256 hashes are embedded in the output.
+The generator derives the 140 physical pin IDs and 135 daisy IDs from the MIMX952
+device header, then extracts per-agent `pinPerms` and `daisyPerms` from the generated
+mx952evk SCMI configuration. Later `DEV_SM_PIN_TYPE_*` configuration constants are
+not part of the physical pin inventory. Source SHA-256 hashes are embedded.
 """
 
 from __future__ import annotations
@@ -59,27 +60,46 @@ def parse_inventory(header_text: str) -> Tuple[Dict[str, int], Dict[str, int], i
     daisies: Dict[str, int] = {}
     declared_pins = -1
     declared_daisies = -1
+    in_pin_index_block = False
+    in_daisy_index_block = False
 
     for line in header_text.splitlines():
-        match = PIN_RE.match(line)
-        if match:
-            pins[match.group(1)] = int(match.group(2), 10)
-            continue
-        match = DAISY_RE.match(line)
-        if match:
-            daisies[match.group(1)] = int(match.group(2), 10)
-            continue
         match = NUM_PIN_RE.match(line)
         if match:
             declared_pins = int(match.group(1), 10)
+            in_pin_index_block = True
             continue
+
         match = NUM_DAISY_RE.match(line)
         if match:
             declared_daisies = int(match.group(1), 10)
+            continue
+
+        match = DAISY_RE.match(line)
+        if match:
+            in_pin_index_block = False
+            in_daisy_index_block = True
+            daisies[match.group(1)] = int(match.group(2), 10)
+            continue
+
+        if in_pin_index_block:
+            match = PIN_RE.match(line)
+            if match:
+                pins[match.group(1)] = int(match.group(2), 10)
+                continue
+
+        if in_daisy_index_block:
+            # The first DEV_SM_PIN_TYPE_* definition marks the end of daisy IDs.
+            if line.lstrip().startswith("#define DEV_SM_PIN_TYPE_"):
+                in_daisy_index_block = False
+                continue
+            match = DAISY_RE.match(line)
+            if match:
+                daisies[match.group(1)] = int(match.group(2), 10)
 
     if len(pins) != declared_pins:
         raise ValueError(
-            f"parsed {len(pins)} pins but DEV_SM_NUM_PIN declares {declared_pins}"
+            f"parsed {len(pins)} physical pins but DEV_SM_NUM_PIN declares {declared_pins}"
         )
     if len(daisies) != declared_daisies:
         raise ValueError(
