@@ -41,7 +41,7 @@ run_docker() {
         -v "${ROOT_DIR}:/workspace" \
         -w /workspace \
         antmicro/renode:nightly-dotnet \
-        bash -lc "command -v renode-test && renode-test ${TEST_PATH}"
+        renode-test "${TEST_PATH}"
 }
 
 run_selected() {
