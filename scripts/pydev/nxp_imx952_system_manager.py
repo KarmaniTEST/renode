@@ -12,6 +12,7 @@
 # - NXP CPU       0x82
 
 from Antmicro.Renode.Core import EmulationManager
+from Antmicro.Renode.Peripherals.CPU import RegisterValue
 
 MU_PAR = 0x004
 MU_GIER = 0x110
@@ -87,24 +88,29 @@ def _write_ascii(offset, text, field_size):
         i += 1
 
 
+def _find_element(name):
+    # PythonPeripheral is wrapped by IronPython, so direct C# indexers and
+    # IsRegistered(self) are not portable across Renode versions. Resolve named
+    # peripherals relative to each machine through Renode's emulation API.
+    emulation = EmulationManager.Instance.CurrentEmulation
+    for candidate in emulation.Machines:
+        try:
+            result = emulation.TryGetEmulationElementByName(name, candidate)
+            if result[0]:
+                return candidate, result[1]
+        except:
+            pass
+    return None, None
+
+
 def _get_machine():
-    # Resolve the machine that owns this PythonPeripheral. This allows the NXP
-    # SCMI CPU protocol to control the actual Cortex-M7 model instead of keeping
-    # a synthetic shadow state.
-    for candidate in EmulationManager.Instance.CurrentEmulation.Machines:
-        if candidate.IsRegistered(self):
-            return candidate
-    return None
+    machine, m7 = _find_element("m7")
+    return machine
 
 
 def _get_m7():
-    machine = _get_machine()
-    if machine is None:
-        return None
-    try:
-        return machine["m7"]
-    except:
-        return None
+    machine, m7 = _find_element("m7")
+    return m7
 
 
 def _update_m7_scmi_irq():
@@ -113,16 +119,15 @@ def _update_m7_scmi_irq():
     # is cleared by firmware. The A55 endpoint remains polling-capable.
     if scmi_channel_count != 1:
         return
-    machine = _get_machine()
-    if machine is None:
+    machine, nvic = _find_element("m7Nvic")
+    if nvic is None:
         return
     try:
-        nvic = machine["m7Nvic"]
         pending = (_read32(MU_GSR) & _read32(MU_GIER) & 0xF) != 0
         nvic.OnGPIO(M7_SCMI_IRQ, pending)
     except:
-        # Keep SCMI transport functional even when the endpoint is instantiated
-        # in a reduced test platform without an NVIC.
+        # Keep SCMI transport functional in reduced test platforms without an
+        # interrupt-capable NVIC object.
         pass
 
 
@@ -138,10 +143,10 @@ def _apply_m7_reset_vector(vector):
     sp = machine.SystemBus.ReadDoubleWord(vector)
     pc = machine.SystemBus.ReadDoubleWord(vector + 4)
     if sp != 0 and pc != 0 and (sp & 0xF0000000) == 0x20000000:
-        m7.SP = sp
-        m7.PC = pc & 0xFFFFFFFE
+        m7.SP = RegisterValue.Create(sp, 32)
+        m7.PC = RegisterValue.Create(pc & 0xFFFFFFFE, 32)
     else:
-        m7.PC = vector & 0xFFFFFFFE
+        m7.PC = RegisterValue.Create(vector & 0xFFFFFFFE, 32)
     return True
 
 
