@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "target": "i.MX952 EVK",
+  "source": {
+    "repository": "nxp-imx/imx-sm",
+    "commit": "44f76dcb32945a60e08ea0133700b820349efbd3",
+    "pin_header": "devices/MIMX952/sm/dev_sm_pin.h",
+    "generated_config": "configs/mx952evk/config_scmi.h",
+    "pinctrl_protocol": "sm/rpc/scmi/rpc_scmi_pinctrl.c",
+    "pin_header_sha256": "aab6757a0706dc73151819b66969af3208941a6edb6f159b348c30dc605aba51",
+    "generated_config_sha256": "608e103fa601f33825d1c669c4aeb70e77d7fe9ae86a0fd46326e87b183e68d4"
+  },
+  "global_pin_count": 140,
+  "global_daisy_count": 135,
+  "agents": {
+    "0": {
+      "name": "M7",
+      "pin_count": 2,
+      "daisy_count": 7,
+      "pin_ids": [18, 19],
+      "daisy_ids": [0, 69, 70, 71, 72, 73, 74]
+    },
+    "1": {
+      "name": "AP-S",
+      "pin_count": 0,
+      "daisy_count": 0,
+      "pin_ids": [],
+      "daisy_ids": []
+    },
+    "2": {
+      "name": "AP-NS",
+      "pin_count": 131,
+      "daisy_count": 125,
+      "pin_rule": {
+        "range_start": 0,
+        "range_end_inclusive": 139,
+        "exclude": [18, 19, 123, 124, 129, 130, 133, 138, 139]
+      },
+      "daisy_rule": {
+        "range_start": 0,
+        "range_end_inclusive": 134,
+        "exclude": [0, 69, 70, 71, 72, 73, 74, 102, 103, 104]
+      }
+    }
+  },
+  "protocol_semantics": {
+    "version": "0x00010000",
+    "global_discovery": "Pinctrl attributes expose the global 140-pin inventory; mutation permissions are agent-specific.",
+    "configure_permission": "EXCLUSIVE or higher required for pin and daisy mutation.",
+    "request_permission": "EXCLUSIVE or higher required for pin request.",
+    "read_only_discovery": "Pin attributes and settings discovery remain globally addressable for valid pin IDs."
+  },
+  "qualification_boundary": [
+    "This contract is a lossless projection of the full generated symbolic evidence artifact.",
+    "The full symbolic map is regenerated from pinned NXP source on every qualification run.",
+    "Permission and functional configuration state do not prove physical pad electrical behavior, mux side effects, ownership arbitration timing, or signal propagation."
+  ]
+}
