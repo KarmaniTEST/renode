@@ -32,5 +32,6 @@ case "${MODE}" in
         ;;
 esac
 
+cd "${ROOT_DIR}"
 echo "[i.MX952] Starting ${MODE} with ${RENODE_BIN}"
 exec "${RENODE_BIN}" --console "${SCRIPT}"
