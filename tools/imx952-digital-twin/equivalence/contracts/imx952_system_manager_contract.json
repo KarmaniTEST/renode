@@ -1,5 +1,5 @@
 {
-  "schema_version": 5,
+  "schema_version": 6,
   "target": "i.MX952 EVK",
   "source": {
     "repository": "nxp-imx/imx-sm",
@@ -7,6 +7,8 @@
     "generated_config": "configs/mx952evk/config_scmi.h",
     "generated_transport": "configs/mx952evk/config_smt.h",
     "protocol_contract": "sm/rpc/scmi/proto.md",
+    "clock_header": "devices/MIMX952/sm/dev_sm_clock.h",
+    "clock_protocol": "sm/rpc/scmi/rpc_scmi_clock.c",
     "performance_domain_header": "devices/MIMX952/sm/dev_sm_perf.h",
     "power_domain_header": "devices/MIMX952/sm/dev_sm_power.h",
     "sensor_header": "devices/MIMX952/sm/dev_sm_sensor.h",
@@ -27,6 +29,7 @@
       "scmi_instance": 0,
       "domain_id": 4,
       "secure": false,
+      "clock_permission_count": 5,
       "performance_domains": [2],
       "readable_device_sensors": [0],
       "lmm_full_control": [2],
@@ -41,6 +44,7 @@
       "scmi_instance": 1,
       "domain_id": 3,
       "secure": true,
+      "clock_permission_count": 9,
       "performance_domains": [3, 7],
       "readable_device_sensors": [],
       "lmm_full_control": [],
@@ -56,6 +60,7 @@
       "scmi_instance": 1,
       "domain_id": 3,
       "secure": false,
+      "clock_permission_count": 92,
       "performance_domains": [3, 5, 7, 8, 9, 10, 11],
       "readable_device_sensors": [1],
       "set_only_device_sensors": [0],
@@ -67,6 +72,27 @@
       "misc_controls": [9]
     }
   ],
+  "clock_permissions": {
+    "global_clock_count": 198,
+    "referenced_permission_symbol_count": 106,
+    "generated_contract": "tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.generated.json",
+    "source_hashes": {
+      "devices/MIMX952/sm/dev_sm_clock.h": "c3b6289c5263bc208f7942055516592177c0c31fcf876da9d1b9f720ffd7aa9f",
+      "configs/mx952evk/config_scmi.h": "608e103fa601f33825d1c669c4aeb70e77d7fe9ae86a0fd46326e87b183e68d4"
+    },
+    "agent_counts": {
+      "0": 5,
+      "1": 9,
+      "2": 92
+    },
+    "semantics": [
+      "SCMI Clock PROTOCOL_ATTRIBUTES keeps the global 198-clock ID space.",
+      "CLOCK_GET_PERMISSIONS reports source-derived per-agent mutation permissions.",
+      "Unassigned clocks remain globally addressable for read-only discovery but are marked restricted.",
+      "Clock rate, configuration and parent mutations are denied when the generated agent permission is absent.",
+      "Clock permission equivalence is functional evidence; physical clock rates, parent topology, enable delays and timing remain hardware-correlation gates."
+    ]
+  },
   "performance_domains": [
     {"id": 0, "name": "M33"},
     {"id": 1, "name": "WAKEUP"},
@@ -186,6 +212,8 @@
     "Use source-derived domain and resource IDs instead of synthetic sequential names.",
     "Advertise a protocol through Base discovery only when its implemented resource contract is available to that agent.",
     "Keep protocol behavior and permissions traceable to the pinned generated configuration.",
+    "Regenerate and compare the exact clock permission map from the pinned NXP source on every qualification run.",
+    "Preserve the global 198-clock ID space while enforcing source-derived per-agent mutation permissions and restricted attributes.",
     "Do not convert SET-only sensor permissions into read access.",
     "Do not convert AP-NS LMM NOTIFY permission into lifecycle-control permission.",
     "Do not expose AP-S to BBM because the pinned EVK configuration grants it no BBM resources.",
