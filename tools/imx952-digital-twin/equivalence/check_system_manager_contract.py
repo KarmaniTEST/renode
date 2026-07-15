@@ -15,7 +15,9 @@ from pathlib import Path
 from typing import Dict, List
 
 ROOT = Path(__file__).resolve().parent
-DEFAULT_MODEL = ROOT.parents[2] / "scripts" / "pydev" / "nxp_imx952_system_manager_full.py"
+PYDEV = ROOT.parents[2] / "scripts" / "pydev"
+DEFAULT_MODEL = PYDEV / "nxp_imx952_system_manager_full.py"
+DEFAULT_BBM_MODEL = PYDEV / "nxp_imx952_system_manager_bbm.py"
 DEFAULT_CONTRACT = ROOT / "contracts" / "imx952_system_manager_contract.json"
 
 PROTOCOL_CONSTANTS = {
@@ -27,6 +29,7 @@ PROTOCOL_CONSTANTS = {
     "0x15": "SCMI_PROTOCOL_SENSOR",
     "0x19": "SCMI_PROTOCOL_PINCTRL",
     "0x80": "SCMI_PROTOCOL_NXP_LMM",
+    "0x81": "_BBM_PROTOCOL",
     "0x82": "SCMI_PROTOCOL_NXP_CPU",
 }
 
@@ -37,6 +40,7 @@ VERSION_CONSTANTS = {
     "0x14": "SCMI_CLOCK_VERSION",
     "0x15": "SCMI_SENSOR_VERSION",
     "0x80": "SCMI_NXP_LMM_VERSION",
+    "0x81": "_BBM_VERSION",
 }
 
 
@@ -55,14 +59,22 @@ def integer_assignments(path: Path) -> Dict[str, int]:
     return result
 
 
+def merged_assignments(paths: List[Path]) -> Dict[str, int]:
+    result: Dict[str, int] = {}
+    for path in paths:
+        result.update(integer_assignments(path))
+    return result
+
+
 def main(argv: List[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=Path, default=DEFAULT_MODEL)
+    parser.add_argument("--bbm-model", type=Path, default=DEFAULT_BBM_MODEL)
     parser.add_argument("--contract", type=Path, default=DEFAULT_CONTRACT)
     args = parser.parse_args(argv)
 
     contract = json.loads(args.contract.read_text(encoding="utf-8"))
-    constants = integer_assignments(args.model)
+    constants = merged_assignments([args.model, args.bbm_model])
     errors: List[str] = []
 
     implemented = set(contract.get("candidate_implemented_protocols", []))
@@ -73,7 +85,7 @@ def main(argv: List[str] | None = None) -> int:
             continue
         actual = constants.get(constant_name)
         if actual is None:
-            errors.append(f"model is missing {constant_name} for implemented {protocol_id}")
+            errors.append(f"model layers are missing {constant_name} for implemented {protocol_id}")
             continue
         if actual != int(protocol_id, 16):
             errors.append(
@@ -90,7 +102,7 @@ def main(argv: List[str] | None = None) -> int:
             continue
         actual = constants.get(constant_name)
         if actual is None:
-            errors.append(f"model is missing version constant {constant_name}")
+            errors.append(f"model layers are missing version constant {constant_name}")
             continue
         expected = int(expected_text, 16)
         if actual != expected:
@@ -110,9 +122,17 @@ def main(argv: List[str] | None = None) -> int:
     if constants.get("LM_M7") != 1 or constants.get("LM_AP") != 2:
         errors.append("model logical-machine IDs do not match the pinned mx952evk SCMI instances")
 
+    bbm_contract = contract.get("bbm_resources", {})
+    if "0x81" in implemented:
+        if bbm_contract.get("gprs") != list(range(8)):
+            errors.append("BBM GPR inventory does not match the pinned i.MX952 8-GPR contract")
+        rtc_ids = [entry.get("id") for entry in bbm_contract.get("rtcs", [])]
+        if rtc_ids != [0, 1]:
+            errors.append(f"unexpected i.MX952 BBM RTC inventory: {rtc_ids}")
+
     result = {
         "verdict": "PASS" if not errors else "FAIL",
-        "model": str(args.model),
+        "models": [str(args.model), str(args.bbm_model)],
         "contract": str(args.contract),
         "implemented_protocols": sorted(implemented),
         "errors": errors,
