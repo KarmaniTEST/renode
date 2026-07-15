@@ -1,0 +1,56 @@
+using sysbus
+
+$name?="nxp-imx952-evk"
+mach create $name
+machine LoadPlatformDescription @platforms/boards/nxp_imx952_evk.repl
+
+# i.MX 9 auxiliary-core control is exposed to A-class software through the
+# NXP SiP service at SMC function ID 0xC2000005. U-Boot's bootaux command
+# uses x1 as the operation, x2 as the reset-vector address and x3 as core ID.
+#
+# Supported operations:
+#   0 - MCU_START
+#   1 - MCU_STARTED
+#   2 - MCU_STOP
+#   3 - MCU_RESET_ADDR_SET (accepted; START uses x2 directly)
+#   4 - MCU_PREP
+#   5 - MCU_PREPED
+#
+# Core ID 1 is Cortex-M7 on i.MX 952.
+a55Cluster.a55_0 PSCIEmulationMethod SMC
+a55Cluster.a55_0 AddCustomPSCIHandler 0xC2000005 """
+op = self.GetRegisterUlong(1)
+address = self.GetRegisterUlong(2)
+core_id = self.GetRegisterUlong(3)
+result = 0
+
+if core_id != 1:
+    result = 0xFFFFFFFFFFFFFFFF
+else:
+    m7 = self.Machine["m7"]
+    if op == 0: # MCU_START
+        sp = self.Machine.SystemBus.ReadDoubleWord(address)
+        pc = self.Machine.SystemBus.ReadDoubleWord(address + 4)
+        if pc == 0:
+            result = 0xFFFFFFFFFFFFFFFF
+        else:
+            m7.SP = sp
+            m7.PC = pc & 0xFFFFFFFE
+            m7.IsHalted = False
+    elif op == 1: # MCU_STARTED
+        result = 0 if m7.IsHalted else 1
+    elif op == 2: # MCU_STOP
+        m7.IsHalted = True
+    elif op == 3: # MCU_RESET_ADDR_SET
+        # START receives the vector-table address directly in x2, matching the
+        # U-Boot i.MX9 bootaux call sequence used by this platform model.
+        result = 0
+    elif op == 4: # MCU_PREP
+        result = 0
+    elif op == 5: # MCU_PREPED
+        result = 1
+    else:
+        result = 0xFFFFFFFFFFFFFFFF
+
+self.SetRegisterUlong(0, result)
+"""
