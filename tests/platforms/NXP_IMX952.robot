@@ -133,7 +133,7 @@ EdgeLock Enclave Provides SoC Identity Fuses And Firmware Status
     Should Be Equal As Numbers    ${fw_status}    0xD6
     Should Be Equal As Numbers    ${fw_state}     0
 
-LPI2C7 Reads EVK Type C Controller Identity
+LPI2C7 Reads EVK Type C Controller Identity And NACKs Unknown Devices
     Create Test Machine
     # START write to address 0x50 and select TCPC register 0x00.
     Write Dword    0x422F0060    0x000004A0
@@ -146,3 +146,10 @@ LPI2C7 Reads EVK Type C Controller Identity
     Write Dword    0x422F0060    0x00000200
     Should Be Equal As Numbers    ${vendor_lo}    0xC9
     Should Be Equal As Numbers    ${vendor_hi}    0x1F
+
+    # Clear status and address an unmodelled device at 0x51. The controller
+    # must report NACK Detect (MSR[NDF], bit 10) instead of inventing a device.
+    Write Dword    0x422F0014    0x00007F00
+    Write Dword    0x422F0060    0x000004A2
+    ${unknown_status}=    Read Dword    0x422F0014
+    Should Be Equal As Numbers    ${unknown_status} & 0x00000400    0x00000400
