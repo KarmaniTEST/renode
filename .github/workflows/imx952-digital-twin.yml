@@ -51,6 +51,7 @@ jobs:
           python3 -m json.tool tools/imx952-digital-twin/equivalence/AUTHORITATIVE_BASELINE.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/EQUIVALENCE_STATUS.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_contract.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_lmm_contract.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/profiles/imx952_evk_b0_foundation.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_physical_reference.template.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_boot_artifacts.template.json >/dev/null
@@ -123,6 +124,7 @@ jobs:
             test -f tools/imx952-digital-twin/equivalence/AUTHORITATIVE_BASELINE.json
             test -f tools/imx952-digital-twin/equivalence/EQUIVALENCE_STATUS.json
             test -f tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_contract.json
+            test -f tools/imx952-digital-twin/equivalence/contracts/imx952_lmm_contract.json
             test -f tools/imx952-digital-twin/equivalence/DEEP_GAP_ANALYSIS.md
           fi
           test -f platforms/boards/nxp_imx952_evk_full.repl
