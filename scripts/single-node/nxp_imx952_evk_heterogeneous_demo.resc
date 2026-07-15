@@ -1,0 +1,32 @@
+:name: NXP i.MX 952 EVK heterogeneous Cortex-A55 + Cortex-M7 demo
+:description: Runs the deterministic A55-to-M7 lifecycle and shared-memory validation firmware on the i.MX 952 EVK model
+
+using sysbus
+
+# The base script creates the platform, holds Cortex-M7 in reset and installs
+# the NXP SiP auxiliary-core lifecycle service at SMC function 0xC2000005.
+include @scripts/single-node/nxp_imx952_evk.resc
+
+$a55Firmware?=@tests/platforms/NXP_IMX952/a55_sip_boot_m7.hex
+$m7Firmware?=@tests/platforms/NXP_IMX952/m7_handshake.hex
+
+macro reset
+"""
+    emulation Reset
+    m7 IsHalted true
+
+    sysbus LoadHEX $m7Firmware
+    sysbus LoadHEX $a55Firmware
+    a55Cluster.a55_0 PC 0x80000000
+"""
+
+runMacro $reset
+
+# Expected shared-memory state after execution:
+#   0x88020000 = 0xA55A55A5  A55 magic
+#   0x88020004 = 0x95200001  command consumed by M7 firmware
+#   0x88020008 = 0x4D370001  M7 completion status
+#   0x88020020 = 0x00000000  SiP MCU_PREP result
+#   0x88020024 = 0x00000001  SiP MCU_PREPED result
+#   0x88020028 = 0x00000000  SiP MCU_START result
+#   0x8802002C = 0x00000001  SiP MCU_STARTED result
