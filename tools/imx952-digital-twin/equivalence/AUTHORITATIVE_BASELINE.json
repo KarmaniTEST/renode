@@ -1,11 +1,11 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "target": {
     "soc": "i.MX952",
     "family": "i.MX95",
     "revision": "B0",
     "board": "i.MX952 EVK",
-    "qualification_status": "BASELINE_DECLARED_HARDWARE_CAPTURE_PENDING"
+    "qualification_status": "ENGINEERING_TWIN_QUALIFIED_FULL_PHYSICAL_CAPTURE_PENDING"
   },
   "authoritative_sources": [
     {
@@ -13,39 +13,33 @@
       "repository": "nxp-imx/imx-mkimage",
       "commit": "1b577853ae1afe1f26cdef27548da52fb424af48",
       "path": "iMX95/soc.mak",
-      "scope": "family_with_revision_selection",
       "purpose": "Production image composition, revision-dependent container format, OEI, DDR firmware and boot load addresses"
     },
     {
-      "name": "NXP i.MX952 EVK System Manager generated configuration",
+      "name": "NXP System Manager",
       "repository": "nxp-imx/imx-sm",
       "commit": "44f76dcb32945a60e08ea0133700b820349efbd3",
-      "path": "configs/mx952evk/config_scmi.h",
-      "scope": "exact_target",
-      "purpose": "Exact i.MX952 EVK SCMI agents, permissions, clocks, performance domains, power domains, resources and logical-machine exposure"
+      "paths": [
+        "configs/mx952evk/config_scmi.h",
+        "configs/mx952evk/config_smt.h",
+        "devices/MIMX952/sm",
+        "boards/mcimx952evk/sm",
+        "sm/rpc/scmi"
+      ],
+      "purpose": "Exact i.MX952 EVK SCMI agents, permissions, seven-channel SMT transport, source-derived protocol/resource contracts and vendor extensions"
     },
     {
-      "name": "NXP System Manager protocol contract",
-      "repository": "nxp-imx/imx-sm",
-      "commit": "44f76dcb32945a60e08ea0133700b820349efbd3",
-      "path": "sm/rpc/scmi/proto.md",
-      "scope": "family_protocol_implementation",
-      "purpose": "Supported standard and NXP vendor SCMI protocols, message IDs, access controls and mandatory-message contract"
-    },
-    {
-      "name": "NXP Linux BSP i.MX952 device tree",
+      "name": "NXP Linux BSP",
       "repository": "nxp-imx/linux-imx",
       "commit": "b096ce610e956cc2596006343df8a2a26ed6e019",
       "path": "arch/arm64/boot/dts/freescale/imx952.dtsi",
-      "scope": "exact_target",
-      "purpose": "Exact production-visible CPU/cache topology, SCMI protocol nodes and OS-facing hardware integration"
+      "purpose": "Production-visible device topology and OS-facing hardware integration"
     },
     {
       "name": "NXP U-Boot",
       "repository": "nxp-imx/uboot-imx",
       "commit": "6eeef838dac4ddbc06ff14450531a95e8c5cb346",
       "path": "board/nxp/imx95_evk/imx95_evk.c",
-      "scope": "family_board_support",
       "purpose": "Production bootloader board initialization and early peripheral expectations"
     },
     {
@@ -53,27 +47,9 @@
       "repository": "nxp-imx/imx-atf",
       "commit": "0779f89a5475a03193f7707f3bbb50cec11707c0",
       "path": "plat/imx/imx9/imx95",
-      "scope": "family_secure_firmware",
       "purpose": "Secure-world platform integration and SCMI/platform definitions"
     }
   ],
-  "source_derived_target_contract": {
-    "a55_core_count": 4,
-    "a55_core_type": "Cortex-A55",
-    "scmi_protocol_ids_visible_to_linux": [
-      "0x11",
-      "0x12",
-      "0x13",
-      "0x14",
-      "0x15",
-      "0x19",
-      "0x80",
-      "0x81",
-      "0x82",
-      "0x84"
-    ],
-    "psci_method": "smc"
-  },
   "known_boot_constants_from_imx_mkimage": {
     "container_version_b0": 2,
     "atf_load_address": "0x8A200000",
@@ -84,12 +60,27 @@
     "oei_a55_load_address": "0x20498000",
     "oei_m33_load_address": "0x1FFC0000"
   },
+  "qualified_functional_system_manager_layers": [
+    "M7/AP-S/AP-NS agent identity",
+    "Power 3.1",
+    "System Power 2.1",
+    "Performance 4.0",
+    "Clock 3.0 functional subset",
+    "Sensor 3.1",
+    "NXP LMM 1.1",
+    "exact seven-channel SMT topology",
+    "functional P2A LMM notification delivery",
+    "NXP BBM 1.0",
+    "NXP MISC 1.1 first slice",
+    "NXP CPU M7 lifecycle subset"
+  ],
   "baseline_rules": [
     "Do not mix evidence from different silicon revisions in one equivalence verdict.",
-    "Prefer exact-target generated configuration and DTS data over family-generic configuration when both exist.",
     "Record exact boot artifacts and their cryptographic hashes for hardware and twin runs.",
     "Record exact System Manager configuration because resource ownership and SCMI exposure are policy-dependent.",
     "Treat production firmware binaries as inputs to qualification, not as undocumented constants embedded in the model.",
+    "Treat current System Manager protocol results as functional-model evidence until compared with production firmware on the physical i.MX952 EVK B0.",
+    "Do not fabricate physical fuse-derived identity, timing, PHY or accelerator values.",
     "Update this baseline through review whenever an authoritative source revision changes."
   ]
 }
