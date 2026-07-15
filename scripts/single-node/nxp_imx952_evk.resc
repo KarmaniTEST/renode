@@ -2,7 +2,7 @@ using sysbus
 
 $name?="nxp-imx952-evk"
 mach create $name
-machine LoadPlatformDescription @platforms/boards/nxp_imx952_evk.repl
+machine LoadPlatformDescription $ORIGIN/../../platforms/boards/nxp_imx952_evk.repl
 
 # Hold the Cortex-M7 in reset until released through the same NXP SiP service
 # used by i.MX9 U-Boot's bootaux command.
