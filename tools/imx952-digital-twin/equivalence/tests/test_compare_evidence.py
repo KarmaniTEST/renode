@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,6 +9,7 @@ MODULE_PATH = Path(__file__).resolve().parents[1] / "compare_evidence.py"
 spec = importlib.util.spec_from_file_location("compare_evidence", MODULE_PATH)
 compare_evidence = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
+sys.modules[spec.name] = compare_evidence
 spec.loader.exec_module(compare_evidence)
 
 
