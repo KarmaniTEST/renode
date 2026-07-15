@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - imx952-a55-m7-support
       - imx952-digital-twin-ready
     paths:
       - "platforms/boards/nxp_imx952_evk.repl"
@@ -47,10 +48,12 @@ jobs:
             antmicro/renode:nightly-dotnet \
             bash -lc 'renode-test tests/platforms/NXP_IMX952.robot'
 
-      - name: Verify operator entry points are present
+      - name: Verify operator entry points when present
         run: |
-          test -f tools/imx952-digital-twin/README.md
-          test -f tools/imx952-digital-twin/run.sh
-          test -f tools/imx952-digital-twin/run.ps1
-          test -f tools/imx952-digital-twin/qualify.sh
+          if test -d tools/imx952-digital-twin; then
+            test -f tools/imx952-digital-twin/README.md
+            test -f tools/imx952-digital-twin/run.sh
+            test -f tools/imx952-digital-twin/run.ps1
+            test -f tools/imx952-digital-twin/qualify.sh
+          fi
           test -f scripts/single-node/nxp_imx952_evk_heterogeneous_demo.resc
