@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parent
 PYDEV = ROOT.parents[2] / "scripts" / "pydev"
 DEFAULT_MODEL = PYDEV / "nxp_imx952_system_manager_full.py"
 DEFAULT_BBM_MODEL = PYDEV / "nxp_imx952_system_manager_bbm.py"
+DEFAULT_MISC_MODEL = PYDEV / "nxp_imx952_system_manager_misc.py"
 DEFAULT_CONTRACT = ROOT / "contracts" / "imx952_system_manager_contract.json"
 
 PROTOCOL_CONSTANTS = {
@@ -31,6 +32,7 @@ PROTOCOL_CONSTANTS = {
     "0x80": "SCMI_PROTOCOL_NXP_LMM",
     "0x81": "_BBM_PROTOCOL",
     "0x82": "SCMI_PROTOCOL_NXP_CPU",
+    "0x84": "_MISC_PROTOCOL",
 }
 
 VERSION_CONSTANTS = {
@@ -41,6 +43,7 @@ VERSION_CONSTANTS = {
     "0x15": "SCMI_SENSOR_VERSION",
     "0x80": "SCMI_NXP_LMM_VERSION",
     "0x81": "_BBM_VERSION",
+    "0x84": "_MISC_VERSION",
 }
 
 
@@ -70,11 +73,12 @@ def main(argv: List[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=Path, default=DEFAULT_MODEL)
     parser.add_argument("--bbm-model", type=Path, default=DEFAULT_BBM_MODEL)
+    parser.add_argument("--misc-model", type=Path, default=DEFAULT_MISC_MODEL)
     parser.add_argument("--contract", type=Path, default=DEFAULT_CONTRACT)
     args = parser.parse_args(argv)
 
     contract = json.loads(args.contract.read_text(encoding="utf-8"))
-    constants = merged_assignments([args.model, args.bbm_model])
+    constants = merged_assignments([args.model, args.bbm_model, args.misc_model])
     errors: List[str] = []
 
     implemented = set(contract.get("candidate_implemented_protocols", []))
@@ -130,9 +134,23 @@ def main(argv: List[str] | None = None) -> int:
         if rtc_ids != [0, 1]:
             errors.append(f"unexpected i.MX952 BBM RTC inventory: {rtc_ids}")
 
+    if "0x84" in implemented:
+        misc = contract.get("misc_first_slice", {})
+        controls = misc.get("controls", [])
+        if controls != [{"id": 9, "name": "COMBO_PHY", "permission": "ALL"}]:
+            errors.append("MISC first slice must remain restricted to AP-NS COMBO_PHY control 9")
+        if constants.get("_MISC_COMBO_PHY") != 9:
+            errors.append("MISC model COMBO_PHY control ID does not match the pinned i.MX952 contract")
+        if constants.get("_MISC_DEVICE_CONTROL_COUNT") != 10:
+            errors.append("MISC device-control count does not match i.MX952 DEV_SM_NUM_CTRL")
+        if constants.get("_MISC_BOARD_CONTROL_COUNT") != 8:
+            errors.append("MISC board-control count does not match the i.MX952 EVK board header")
+        if constants.get("_MISC_REASON_COUNT") != 32:
+            errors.append("MISC reset-reason count does not match i.MX952 DEV_SM_NUM_REASON")
+
     result = {
         "verdict": "PASS" if not errors else "FAIL",
-        "models": [str(args.model), str(args.bbm_model)],
+        "models": [str(args.model), str(args.bbm_model), str(args.misc_model)],
         "contract": str(args.contract),
         "implemented_protocols": sorted(implemented),
         "errors": errors,
