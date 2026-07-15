@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "target": "i.MX952 EVK",
   "source": {
     "repository": "nxp-imx/imx-sm",
@@ -9,7 +9,8 @@
     "performance_domain_header": "devices/MIMX952/sm/dev_sm_perf.h",
     "power_domain_header": "devices/MIMX952/sm/dev_sm_power.h",
     "sensor_header": "devices/MIMX952/sm/dev_sm_sensor.h",
-    "sensor_protocol": "sm/rpc/scmi/rpc_scmi_sensor.c"
+    "sensor_protocol": "sm/rpc/scmi/rpc_scmi_sensor.c",
+    "lmm_protocol": "sm/rpc/scmi/rpc_scmi_lmm.c"
   },
   "agents": [
     {
@@ -19,7 +20,8 @@
       "domain_id": 4,
       "secure": false,
       "performance_domains": [2],
-      "readable_device_sensors": [0]
+      "readable_device_sensors": [0],
+      "lmm_full_control": [2]
     },
     {
       "id": 1,
@@ -28,7 +30,9 @@
       "domain_id": 3,
       "secure": true,
       "performance_domains": [3, 7],
-      "readable_device_sensors": []
+      "readable_device_sensors": [],
+      "lmm_full_control": [],
+      "lmm_notify": []
     },
     {
       "id": 2,
@@ -38,7 +42,9 @@
       "secure": false,
       "performance_domains": [3, 5, 7, 8, 9, 10, 11],
       "readable_device_sensors": [1],
-      "set_only_device_sensors": [0]
+      "set_only_device_sensors": [0],
+      "lmm_full_control": [],
+      "lmm_notify": [1]
     }
   ],
   "performance_domains": [
@@ -62,16 +68,12 @@
     {"id": 3, "name": "ODV"}
   ],
   "device_sensors": [
-    {
-      "id": 0,
-      "name": "TEMP_ANA",
-      "source_symbol": "DEV_SM_SENSOR_TEMP_ANA"
-    },
-    {
-      "id": 1,
-      "name": "TEMP_A55",
-      "source_symbol": "DEV_SM_SENSOR_TEMP_A55"
-    }
+    {"id": 0, "name": "TEMP_ANA", "source_symbol": "DEV_SM_SENSOR_TEMP_ANA"},
+    {"id": 1, "name": "TEMP_A55", "source_symbol": "DEV_SM_SENSOR_TEMP_A55"}
+  ],
+  "logical_machines": [
+    {"id": 1, "name": "M7 logical machine"},
+    {"id": 2, "name": "AP logical machine"}
   ],
   "linux_visible_protocols": [
     {"id": "0x11", "name": "POWER"},
@@ -92,7 +94,8 @@
     "0x14": "0x00030000",
     "0x15": "0x00030001",
     "0x16": "0x00030001",
-    "0x17": "0x00020001"
+    "0x17": "0x00020001",
+    "0x80": "0x00010001"
   },
   "candidate_implemented_protocols": [
     "0x10",
@@ -102,23 +105,19 @@
     "0x14",
     "0x15",
     "0x19",
+    "0x80",
     "0x82"
   ],
   "pinned_not_yet_advertised": [
     {
       "id": "0x16",
       "name": "RESET",
-      "reason": "Exact i.MX952 EVK reset-domain inventory and agent permissions must be derived before advertisement."
+      "reason": "The Linux-visible i.MX952 target contract does not expose this protocol; exact EVK reset-domain permissions must be established before optional advertisement."
     },
     {
       "id": "0x17",
       "name": "VOLTAGE",
-      "reason": "Exact i.MX952 EVK voltage-domain inventory and agent permissions must be derived before advertisement."
-    },
-    {
-      "id": "0x80",
-      "name": "NXP_LMM",
-      "reason": "Vendor protocol contract and logical-machine lifecycle are not yet implemented."
+      "reason": "The Linux-visible i.MX952 target contract does not expose this protocol; exact EVK voltage-domain permissions must be established before optional advertisement."
     },
     {
       "id": "0x81",
@@ -139,6 +138,7 @@
     "Advertise a protocol through Base discovery only when its implemented resource contract is available to that agent.",
     "Keep protocol behavior and permissions traceable to the pinned generated configuration.",
     "Do not convert SET-only sensor permissions into read access.",
-    "Keep deterministic sensor values explicitly classified as model inputs until correlated with physical EVK measurements."
+    "Do not convert AP-NS LMM NOTIFY permission into lifecycle-control permission.",
+    "Keep deterministic sensor values and logical-machine timing explicitly classified as model inputs until correlated with physical EVK measurements."
   ]
 }
