@@ -14,6 +14,7 @@
 from Antmicro.Renode.Core import EmulationManager
 
 MU_PAR = 0x004
+MU_GIER = 0x110
 MU_GCR = 0x114
 MU_GSR = 0x118
 MU_TSR = 0x124
@@ -41,6 +42,7 @@ SCMI_CLOCK_COUNT = 198
 SCMI_CLOCK_VERSION = 0x00020000
 SCMI_NXP_CPU_VERSION = 0x00010000
 IMX952_M7_CPUID = 1
+M7_SCMI_IRQ = 205
 
 CPU_RUN_MODE_START = 0
 CPU_RUN_MODE_HOLD = 1
@@ -103,6 +105,25 @@ def _get_m7():
         return machine["m7"]
     except:
         return None
+
+
+def _update_m7_scmi_irq():
+    # The M7 MU5 endpoint has one interrupt line at NVIC IRQ 205. Assert it when
+    # a General Interrupt response is pending and enabled; deassert it when GSR
+    # is cleared by firmware. The A55 endpoint remains polling-capable.
+    if scmi_channel_count != 1:
+        return
+    machine = _get_machine()
+    if machine is None:
+        return
+    try:
+        nvic = machine["m7Nvic"]
+        pending = (_read32(MU_GSR) & _read32(MU_GIER) & 0xF) != 0
+        nvic.OnGPIO(M7_SCMI_IRQ, pending)
+    except:
+        # Keep SCMI transport functional even when the endpoint is instantiated
+        # in a reduced test platform without an NVIC.
+        pass
 
 
 def _apply_m7_reset_vector(vector):
@@ -360,12 +381,13 @@ def _process_scmi(channel):
     else:
         _set_response(channel, SCMI_NOT_SUPPORTED, [])
     _write32(MU_GSR, _read32(MU_GSR) | (1 << channel))
+    _update_m7_scmi_irq()
     self.NoisyLog("i.MX952 SCMI response: channel=%d protocol=0x%X message=0x%X" %
                   (channel, protocol_id, message_id))
 
 
 if request.IsInit:
-    memory = [0] * size
+    memory = [0] * int(size)
     clock_rates = {}
     clock_enabled = {}
     clock_parents = {}
@@ -391,9 +413,13 @@ elif request.IsWrite:
     value = request.Value
     length = request.Length
 
-    if offset == MU_GSR and length == 4:
+    if offset == MU_GIER and length == 4:
+        _write32(MU_GIER, value)
+        _update_m7_scmi_irq()
+    elif offset == MU_GSR and length == 4:
         # GSR is write-one-to-clear for pending general interrupt bits.
         _write32(MU_GSR, _read32(MU_GSR) & (~value & 0xFFFFFFFF))
+        _update_m7_scmi_irq()
     elif offset == MU_GCR and length == 4:
         # Process each requested SMT channel synchronously.
         _write32(MU_GCR, value)
