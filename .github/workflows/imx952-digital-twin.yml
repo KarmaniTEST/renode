@@ -75,6 +75,12 @@ jobs:
           print('Clock permission contract matches pinned NXP source exactly.')
           PY
 
+      - name: Generate pinned-source Pinctrl permission evidence
+        run: |
+          python3 tools/imx952-digital-twin/equivalence/generate_pinctrl_permissions.py \
+            --output imx952-pinctrl-permissions-generated.json
+          python3 -m json.tool imx952-pinctrl-permissions-generated.json >/dev/null
+
       - name: Verify full physical gate fails closed without evidence
         shell: bash
         run: |
@@ -130,6 +136,7 @@ jobs:
             imx952-qualification.log
             imx952-full-physical-gate.log
             imx952-clock-permissions-generated.json
+            imx952-pinctrl-permissions-generated.json
             logs/**/*.log
           if-no-files-found: warn
 
@@ -148,6 +155,7 @@ jobs:
             test -f tools/imx952-digital-twin/equivalence/qualification_gate.py
             test -f tools/imx952-digital-twin/equivalence/check_system_manager_contract.py
             test -f tools/imx952-digital-twin/equivalence/generate_clock_permissions.py
+            test -f tools/imx952-digital-twin/equivalence/generate_pinctrl_permissions.py
             test -f tools/imx952-digital-twin/equivalence/validate_boot_artifacts.py
             test -f tools/imx952-digital-twin/equivalence/AUTHORITATIVE_BASELINE.json
             test -f tools/imx952-digital-twin/equivalence/EQUIVALENCE_STATUS.json
