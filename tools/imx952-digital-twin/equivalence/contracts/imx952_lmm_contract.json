@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "target": "i.MX952 EVK",
+  "protocol": {
+    "id": "0x80",
+    "name": "NXP_LMM",
+    "version": "0x00010001",
+    "source": {
+      "repository": "nxp-imx/imx-sm",
+      "commit": "44f76dcb32945a60e08ea0133700b820349efbd3",
+      "implementation": "sm/rpc/scmi/rpc_scmi_lmm.c",
+      "generated_config": "configs/mx952evk/config_scmi.h"
+    }
+  },
+  "messages": [
+    {"id": "0x00", "name": "PROTOCOL_VERSION"},
+    {"id": "0x01", "name": "PROTOCOL_ATTRIBUTES"},
+    {"id": "0x02", "name": "PROTOCOL_MESSAGE_ATTRIBUTES"},
+    {"id": "0x03", "name": "LMM_ATTRIBUTES"},
+    {"id": "0x04", "name": "LMM_BOOT"},
+    {"id": "0x05", "name": "LMM_RESET"},
+    {"id": "0x06", "name": "LMM_SHUTDOWN"},
+    {"id": "0x07", "name": "LMM_WAKE"},
+    {"id": "0x08", "name": "LMM_SUSPEND"},
+    {"id": "0x09", "name": "LMM_NOTIFY"},
+    {"id": "0x0A", "name": "LMM_RESET_REASON"},
+    {"id": "0x0B", "name": "LMM_POWER_ON"},
+    {"id": "0x0C", "name": "LMM_RESET_VECTOR_SET"},
+    {"id": "0x10", "name": "NEGOTIATE_PROTOCOL_VERSION"}
+  ],
+  "logical_machines": [
+    {
+      "id": 1,
+      "name": "M7 logical machine",
+      "inferred_from_scmi_instance_owner": "SM_SCMI0_CONFIG.lmId = 1"
+    },
+    {
+      "id": 2,
+      "name": "AP logical machine",
+      "inferred_from_scmi_instance_owner": "SM_SCMI1_CONFIG.lmId = 2"
+    }
+  ],
+  "agent_permissions": [
+    {
+      "agent_id": 0,
+      "agent": "M7",
+      "logical_machine_id": 2,
+      "permission": "ALL",
+      "source_expression": ".lmmPerms[2] = SM_SCMI_PERM_ALL"
+    },
+    {
+      "agent_id": 2,
+      "agent": "AP-NS",
+      "logical_machine_id": 1,
+      "permission": "NOTIFY",
+      "source_expression": ".lmmPerms[1] = SM_SCMI_PERM_NOTIFY"
+    }
+  ],
+  "implementation_policy": [
+    "Do not advertise LMM to AP-S because the pinned EVK policy grants no LMM permission.",
+    "Do not convert AP-NS NOTIFY permission into lifecycle control or attribute access.",
+    "M7 may control only logical machine 2 under the pinned generated configuration.",
+    "LMM state transitions are functional-model evidence until compared against the physical EVK.",
+    "LMM notification delivery requires the P2A notification-channel model and cannot be claimed complete before that transport is implemented."
+  ]
+}
