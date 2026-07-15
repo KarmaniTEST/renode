@@ -12,11 +12,12 @@
 // - functional A55 MU2/SCMI System Manager transport
 // - functional early-boot ELE MU service
 // - functional LPI2C7 path with the EVK USB Type-C controller
+// - native USDHC1/2/3 storage controllers
 //
 // Scope limitation:
 // This is initial boot-capable platform support, not a complete hardware-faithful
 // SoC model. Boot ROM, the complete ELE/System Manager firmware surface, GIC ITS,
-// NETC and full boot-media integration are future work. M7-side MU windows remain
+// NETC and populated boot-media images are future work. M7-side MU windows remain
 // memory-backed until the corresponding inter-core mailbox model is implemented.
 
 a55Cluster: CPU.Cluster @ sysbus
@@ -166,6 +167,17 @@ lpi2c7: Python.PythonPeripheral @ sysbus 0x422F0000
     size: 0x00010000
     initable: true
     filename: "scripts/pydev/nxp_imx952_lpi2c7.py"
+
+// i.MX 952 USDHC controllers. Linux GIC SPI IDs are translated to absolute
+// GIC interrupt IDs by adding the 32 SGI/PPI lines.
+usdhc1: SD.NXP_uSDHC @ sysbus 0x42C20000
+    IRQ -> gic@118
+
+usdhc2: SD.NXP_uSDHC @ sysbus 0x42C30000
+    IRQ -> gic@119
+
+usdhc3: SD.NXP_uSDHC @ sysbus 0x42C40000
+    IRQ -> gic@223
 
 // M7-side MU5 and SCMI shared-memory windows from the current Zephyr i.MX 952
 // M7 device tree.
