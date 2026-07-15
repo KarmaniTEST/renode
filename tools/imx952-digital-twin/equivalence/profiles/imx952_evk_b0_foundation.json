@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "name": "imx952-evk-b0-foundation",
+  "required_target": {
+    "soc": "i.MX952",
+    "revision": "B0",
+    "board": "i.MX952 EVK"
+  },
+  "rules": [
+    {
+      "key": "boot.stage_sequence",
+      "kind": "sequence",
+      "required": true,
+      "ignore_values": ["timestamp"]
+    },
+    {
+      "key": "boot.container_version",
+      "kind": "exact",
+      "required": true
+    },
+    {
+      "key": "boot.atf_load_address",
+      "kind": "exact",
+      "required": true
+    },
+    {
+      "key": "boot.uboot_load_address",
+      "kind": "exact",
+      "required": true
+    },
+    {
+      "key": "boot.m7_tcm_alias",
+      "kind": "exact",
+      "required": true
+    },
+    {
+      "key": "sm.scmi.protocols",
+      "kind": "set",
+      "required": true
+    },
+    {
+      "key": "sm.m7.lifecycle",
+      "kind": "sequence",
+      "required": true
+    },
+    {
+      "key": "ele.firmware_status",
+      "kind": "exact",
+      "required": true
+    },
+    {
+      "key": "timing.boot_to_uboot_ms",
+      "kind": "numeric",
+      "unit": "ms",
+      "required": false,
+      "abs_tolerance": 25.0,
+      "rel_tolerance_pct": 10.0
+    },
+    {
+      "key": "timing.m7_release_us",
+      "kind": "numeric",
+      "unit": "us",
+      "required": false,
+      "abs_tolerance": 50.0,
+      "rel_tolerance_pct": 10.0
+    }
+  ]
+}
