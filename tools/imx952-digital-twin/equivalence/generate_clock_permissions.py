@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Generate the exact i.MX952 EVK SCMI clock-permission map from pinned NXP source.
 
-The generator intentionally derives IDs from the device clock header and permissions
-from the generated mx952evk SCMI configuration instead of maintaining a hand-written
-clock inventory. The output is deterministic and records SHA-256 hashes of both source
-files so a generated contract can be traced to exact input bytes.
+NXP's MIMX952 clock header maps DEV_SM_CLK_* symbols onto SDK CLOCK_* symbols and
+also records the stable System Manager numeric ID in each generated Doxygen comment,
+for example `/*!< 44: CAN1 root */`. The generator therefore derives numeric IDs
+from those source annotations and permissions from the generated mx952evk SCMI
+configuration. The output records SHA-256 hashes of both source files.
 """
 
 from __future__ import annotations
@@ -25,8 +26,8 @@ RAW_BASE = f"https://raw.githubusercontent.com/{PINNED_REPOSITORY}/{PINNED_COMMI
 
 AGENT_NAMES = {0: "M7", 1: "AP-S", 2: "AP-NS"}
 
-CLOCK_DEFINE_RE = re.compile(
-    r"^\s*#define\s+(DEV_SM_CLK_[A-Z0-9_]+)\s+([0-9]+)U?\s*(?:/\*.*)?$"
+CLOCK_ANNOTATION_RE = re.compile(
+    r"^\s*#define\s+(DEV_SM_CLK_[A-Z0-9_]+)\s+.+?/\*!<\s*([0-9]+)\s*:"
 )
 AGENT_DEFINE_RE = re.compile(r"^\s*#define\s+SM_SCMI_AGNT([0-9]+)_CONFIG\b")
 CLOCK_PERMISSION_RE = re.compile(
@@ -39,7 +40,9 @@ def sha256_text(text: str) -> str:
 
 
 def fetch_text(url: str) -> str:
-    request = urllib.request.Request(url, headers={"User-Agent": "imx952-clock-contract-generator"})
+    request = urllib.request.Request(
+        url, headers={"User-Agent": "imx952-clock-contract-generator"}
+    )
     with urllib.request.urlopen(request, timeout=30) as response:
         data = response.read()
     return data.decode("utf-8")
@@ -55,11 +58,20 @@ def load_text(path: Path | None, url: str) -> Tuple[str, str]:
 def parse_clock_ids(header_text: str) -> Dict[str, int]:
     result: Dict[str, int] = {}
     for line in header_text.splitlines():
-        match = CLOCK_DEFINE_RE.match(line)
+        match = CLOCK_ANNOTATION_RE.match(line)
         if match:
-            result[match.group(1)] = int(match.group(2), 10)
+            symbol = match.group(1)
+            clock_id = int(match.group(2), 10)
+            if symbol in result and result[symbol] != clock_id:
+                raise ValueError(
+                    f"clock symbol {symbol} has conflicting IDs {result[symbol]} and {clock_id}"
+                )
+            result[symbol] = clock_id
+
     if not result:
-        raise ValueError("no DEV_SM_CLK_* numeric definitions were found")
+        raise ValueError(
+            "no annotated DEV_SM_CLK_* definitions were found in the pinned MIMX952 header"
+        )
     return result
 
 
@@ -83,13 +95,12 @@ def parse_agent_clock_permissions(config_text: str) -> Dict[int, List[Tuple[str,
                 (permission_match.group(1), permission_match.group(2))
             )
 
-        # Generated macro body closes on a standalone `}` optionally followed by `\`.
-        stripped = line.strip().rstrip("\\").strip()
-        if stripped == "}":
+        # Generated agent macro closes on a standalone `}`.
+        if line.strip().rstrip("\\").strip() == "}":
             current_agent = None
 
     if not any(result.values()):
-        raise ValueError("no agent clock permissions were found")
+        raise ValueError("no agent clock permissions were found in the pinned SCMI config")
     return result
 
 
@@ -104,14 +115,15 @@ def build_contract(
 
     agents: Dict[str, object] = {}
     referenced_symbols = set()
+    missing_symbols = []
+
     for agent_id in sorted(permissions):
         entries = []
         for symbol, permission in permissions[agent_id]:
             referenced_symbols.add(symbol)
             if symbol not in clock_ids:
-                raise ValueError(
-                    f"generated config references {symbol}, but the pinned clock header has no numeric ID"
-                )
+                missing_symbols.append(symbol)
+                continue
             entries.append(
                 {
                     "id": clock_ids[symbol],
@@ -126,6 +138,12 @@ def build_contract(
             "clock_count": len(entries),
             "clocks": entries,
         }
+
+    if missing_symbols:
+        raise ValueError(
+            "generated config references clock symbols missing from the pinned annotated header: "
+            + ", ".join(sorted(set(missing_symbols)))
+        )
 
     duplicate_ids: Dict[int, List[str]] = {}
     for symbol, clock_id in clock_ids.items():
@@ -156,7 +174,7 @@ def build_contract(
         "qualification_policy": [
             "Only clocks present in an agent's generated clkPerms table may be exposed to that agent.",
             "Permission hierarchy must be interpreted according to NXP sm/doc/config.md.",
-            "Clock IDs are derived from the pinned MIMX952 device header, never copied from the Linux DTS numbering.",
+            "Clock IDs are derived from the pinned MIMX952 System Manager header annotations, never from Linux DTS numbering.",
             "This contract proves source traceability, not physical clock-tree timing equivalence."
         ],
     }
