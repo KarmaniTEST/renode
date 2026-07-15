@@ -18,9 +18,9 @@
 #   local 2 -> AP-NS A2P request
 #   local 3 -> AP-NS P2A notification
 #
-# The wrapper deliberately keeps P2A delivery classified as FUNCTIONAL_MODEL:
-# the notification buffer and doorbell-pending state are modeled, but silicon
-# interrupt latency is not claimed until physical-EVK correlation exists.
+# P2A delivery remains FUNCTIONAL_MODEL evidence: the notification buffer and
+# mailbox-doorbell pending state are modeled, but silicon interrupt latency is
+# not claimed until physical-EVK correlation exists.
 
 # Private implementation offsets used only to communicate a remote P2A event
 # between the two PythonPeripheral instances. They are not part of the public
@@ -29,26 +29,36 @@ _INTERNAL_AP_NS_LMM_SUBSCRIPTION = 0x1E0
 _INTERNAL_REMOTE_GSR_SET = 0x1F0
 
 _AP_ENDPOINT_BASE = 0x445B0000
-_M7_ENDPOINT_BASE = 0x44610000
 _SCMI_SRAM_OFFSET = 0x1000
 _SCMI_CHANNEL_SIZE_BYTES = 0x80
 _MU_GCR_OFFSET = 0x114
-_MU_GSR_OFFSET = 0x118
 
 _SCMI_MESSAGE_TYPE_NOTIFICATION = 3
 _LMM_EVENT_MESSAGE_ID = 0
-_LMM_EVENT_BOOT = 1 << 0
 _LMM_EVENT_SHUTDOWN = 1 << 1
 _LMM_EVENT_SUSPEND = 1 << 2
 _LMM_EVENT_WAKE = 1 << 3
 
-# Preserve the guest's original doorbell value. The legacy protocol engine only
-# understands its previous request-channel layout, so present it with A2P bit 0
-# and process AP-NS local channel 2 explicitly after the engine runs. P2A bits
-# are never dispatched as requests.
 _original_request_value = request.Value if request.IsWrite else 0
+# Keep AP at 0x1400 so the underlying protocol engine continues to distinguish
+# it from the M7 endpoint. The transport wrapper uses four local AP channels.
 _is_ap_endpoint = size >= 0x1400
 
+# Capture AP-NS LMM_NOTIFY request fields before the protocol engine overwrites
+# the request payload with the response status.
+_pre_ap_ns_lmm_notify_flags = None
+if (request.IsWrite and request.Offset == _MU_GCR_OFFSET and
+        _is_ap_endpoint and (_original_request_value & (1 << 2))):
+    request_base = _SCMI_SRAM_OFFSET + 2 * _SCMI_CHANNEL_SIZE_BYTES
+    header = _read32(request_base + 0x18)
+    message_id = header & 0xFF
+    protocol_id = (header >> 10) & 0xFF
+    if protocol_id == 0x80 and message_id == 0x09:
+        _pre_ap_ns_lmm_notify_flags = _read32(request_base + 0x1C + 4)
+
+# The base protocol engine only knows its previous request-channel dispatch.
+# Present it with A2P local bit 0; AP-NS local bit 2 is processed explicitly
+# below. P2A bits are never dispatched as requests.
 if request.IsWrite and request.Offset == _MU_GCR_OFFSET:
     request.Value = _original_request_value & 0x1
 
@@ -73,7 +83,7 @@ def _write_remote_notification(endpoint_base, channel, protocol_id, message_id, 
     channel_base = endpoint_base + _SCMI_SRAM_OFFSET + \
                    channel * _SCMI_CHANNEL_SIZE_BYTES
 
-    # Mark channel busy/pending while a P2A message is available.
+    # Channel busy/pending while the P2A message is available.
     machine.SystemBus.WriteDoubleWord(channel_base + SMT_CHANNEL_STATUS, 0)
     machine.SystemBus.WriteDoubleWord(
         channel_base + SMT_MESSAGE_HEADER,
@@ -91,8 +101,8 @@ def _write_remote_notification(endpoint_base, channel, protocol_id, message_id, 
         channel_base + SMT_LENGTH,
         4 + 4 * len(words))
 
-    # Ask the destination PythonPeripheral instance to assert the matching
-    # mailbox-doorbell pending bit in its modeled GSR.
+    # Cross-instance doorbell bridge: ask the destination endpoint to set its
+    # modeled GSR pending bit for the P2A channel.
     machine.SystemBus.WriteDoubleWord(
         endpoint_base + _INTERNAL_REMOTE_GSR_SET,
         1 << channel)
@@ -118,15 +128,8 @@ def _emit_lmm_event_to_ap_ns(event_lm, flags):
         [LM_M7, event_lm, flags])
 
 
-# Initialize the additional source-derived P2A channel buffers.
 if request.IsInit:
-    if _is_ap_endpoint:
-        # local 0 A2P AP-S, 1 P2A AP-S, 2 A2P AP-NS, 3 P2A AP-NS
-        transport_channel_count = 4
-    else:
-        # local 0 A2P M7, 1 P2A notify, 2 P2A priority
-        transport_channel_count = 3
-
+    transport_channel_count = 4 if _is_ap_endpoint else 3
     channel = 0
     while channel < transport_channel_count:
         _write32(_transport_channel_base(channel) + SMT_CHANNEL_STATUS,
@@ -137,8 +140,8 @@ if request.IsInit:
         _write32(_INTERNAL_AP_NS_LMM_SUBSCRIPTION, 0)
 
 elif request.IsWrite:
-    # Cross-endpoint P2A doorbell assertion. Guest software never uses this
-    # private offset; it is only a bridge between the two modeled MU endpoints.
+    # Guest software never uses this private offset; it only bridges a remote
+    # P2A event between the M7 and AP modeled MU endpoints.
     if request.Offset == _INTERNAL_REMOTE_GSR_SET and request.Length == 4:
         _write32(MU_GSR, _read32(MU_GSR) | (_original_request_value & 0xF))
 
@@ -148,32 +151,20 @@ elif request.IsWrite:
             _process_scmi(2)
 
             request_base = _transport_channel_base(2)
-            header = _read32(request_base + SMT_MESSAGE_HEADER)
-            message_id = header & 0xFF
-            protocol_id = (header >> 10) & 0xFF
+            if (_pre_ap_ns_lmm_notify_flags is not None and
+                    _read32(request_base + SMT_PAYLOAD) == SCMI_SUCCESS):
+                _write32(_INTERNAL_AP_NS_LMM_SUBSCRIPTION,
+                         _pre_ap_ns_lmm_notify_flags)
 
-            # Mirror AP-NS LMM notification subscription so the M7 endpoint can
-            # route a later event to AP-NS P2A local channel 3/global channel 6.
-            if protocol_id == SCMI_PROTOCOL_NXP_LMM and message_id == 0x09:
-                if _read32(request_base + SMT_PAYLOAD) == SCMI_SUCCESS:
-                    flags = _read32(request_base + SMT_PAYLOAD + 8)
-                    # The response overwrites the request, so recover flags from
-                    # the raw write history retained by the model when possible.
-                    # For deterministic tests, the subscription is also accepted
-                    # from payload+4 before the response is issued.
-                    if flags == 0:
-                        flags = 0xF
-                    _write32(_INTERNAL_AP_NS_LMM_SUBSCRIPTION, flags)
-
-        # M7 A2P remains local channel 0 and is handled by the base engine.
+        # M7 A2P local channel 0 is handled by the base engine. A System Power
+        # transition of M7 logical machine 1 can generate an LMM P2A event for
+        # an AP-NS subscriber on local channel 3/global channel 6.
         if not _is_ap_endpoint and (_original_request_value & 0x1):
             request_base = _transport_channel_base(0)
             header = _read32(request_base + SMT_MESSAGE_HEADER)
             message_id = header & 0xFF
             protocol_id = (header >> 10) & 0xFF
 
-            # A System Power transition of the M7 logical machine is a concrete
-            # source for an LMM event toward subscribed AP-NS software.
             if protocol_id == SCMI_PROTOCOL_SYSTEM and message_id == 0x03:
                 state = system_power_state.get(AGENT_M7)
                 if state == SYS_STATE_SHUTDOWN:
@@ -183,5 +174,4 @@ elif request.IsWrite:
                 elif state == SYS_STATE_POWER_UP:
                     _emit_lmm_event_to_ap_ns(LM_M7, _LMM_EVENT_WAKE)
 
-        # Preserve the externally visible value as a consumed doorbell.
         _write32(MU_GCR, 0)
