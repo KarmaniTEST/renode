@@ -1,16 +1,20 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "target": "i.MX952 EVK",
   "source": {
     "repository": "nxp-imx/imx-sm",
     "commit": "44f76dcb32945a60e08ea0133700b820349efbd3",
     "generated_config": "configs/mx952evk/config_scmi.h",
+    "generated_transport": "configs/mx952evk/config_smt.h",
     "protocol_contract": "sm/rpc/scmi/proto.md",
     "performance_domain_header": "devices/MIMX952/sm/dev_sm_perf.h",
     "power_domain_header": "devices/MIMX952/sm/dev_sm_power.h",
     "sensor_header": "devices/MIMX952/sm/dev_sm_sensor.h",
     "sensor_protocol": "sm/rpc/scmi/rpc_scmi_sensor.c",
-    "lmm_protocol": "sm/rpc/scmi/rpc_scmi_lmm.c"
+    "lmm_protocol": "sm/rpc/scmi/rpc_scmi_lmm.c",
+    "bbm_protocol": "sm/rpc/scmi/rpc_scmi_bbm.c",
+    "bbm_device_header": "devices/MIMX952/sm/dev_sm_bbm.h",
+    "bbm_board_header": "boards/mcimx952evk/sm/brd_sm_bbm.h"
   },
   "agents": [
     {
@@ -21,7 +25,10 @@
       "secure": false,
       "performance_domains": [2],
       "readable_device_sensors": [0],
-      "lmm_full_control": [2]
+      "lmm_full_control": [2],
+      "bbm_rtc": [0, 1],
+      "bbm_button": [0],
+      "bbm_gpr": []
     },
     {
       "id": 1,
@@ -32,7 +39,10 @@
       "performance_domains": [3, 7],
       "readable_device_sensors": [],
       "lmm_full_control": [],
-      "lmm_notify": []
+      "lmm_notify": [],
+      "bbm_rtc": [],
+      "bbm_button": [],
+      "bbm_gpr": []
     },
     {
       "id": 2,
@@ -44,7 +54,10 @@
       "readable_device_sensors": [1],
       "set_only_device_sensors": [0],
       "lmm_full_control": [],
-      "lmm_notify": [1]
+      "lmm_notify": [1],
+      "bbm_rtc": [0, 1],
+      "bbm_button": [0],
+      "bbm_gpr": [4, 5, 6, 7]
     }
   ],
   "performance_domains": [
@@ -75,6 +88,25 @@
     {"id": 1, "name": "M7 logical machine"},
     {"id": 2, "name": "AP logical machine"}
   ],
+  "bbm_resources": {
+    "gprs": [0, 1, 2, 3, 4, 5, 6, 7],
+    "rtcs": [
+      {"id": 0, "name": "BBNSM"},
+      {"id": 1, "name": "PCA2131"}
+    ],
+    "buttons": [
+      {"id": 0, "name": "BBM_BUTTON_0"}
+    ]
+  },
+  "smt_channels": [
+    {"global_id": 0, "agent": "M7", "direction": "A2P"},
+    {"global_id": 1, "agent": "M7", "direction": "P2A_NOTIFY"},
+    {"global_id": 2, "agent": "M7", "direction": "P2A_PRIORITY"},
+    {"global_id": 3, "agent": "AP-S", "direction": "A2P"},
+    {"global_id": 4, "agent": "AP-S", "direction": "P2A_NOTIFY"},
+    {"global_id": 5, "agent": "AP-NS", "direction": "A2P"},
+    {"global_id": 6, "agent": "AP-NS", "direction": "P2A_NOTIFY"}
+  ],
   "linux_visible_protocols": [
     {"id": "0x11", "name": "POWER"},
     {"id": "0x12", "name": "SYSTEM_POWER"},
@@ -95,7 +127,8 @@
     "0x15": "0x00030001",
     "0x16": "0x00030001",
     "0x17": "0x00020001",
-    "0x80": "0x00010001"
+    "0x80": "0x00010001",
+    "0x81": "0x00010000"
   },
   "candidate_implemented_protocols": [
     "0x10",
@@ -106,6 +139,7 @@
     "0x15",
     "0x19",
     "0x80",
+    "0x81",
     "0x82"
   ],
   "pinned_not_yet_advertised": [
@@ -120,25 +154,22 @@
       "reason": "The Linux-visible i.MX952 target contract does not expose this protocol; exact EVK voltage-domain permissions must be established before optional advertisement."
     },
     {
-      "id": "0x81",
-      "name": "NXP_BBM",
-      "reason": "Vendor protocol contract is not yet implemented."
-    },
-    {
       "id": "0x84",
       "name": "NXP_MISC",
-      "reason": "Vendor control/resource contract is not yet implemented."
+      "reason": "Vendor control/resource contract is being derived; the protocol is not advertised until explicit i.MX952 EVK permissions and implemented messages are qualified."
     }
   ],
   "model_refactor_requirements": [
     "Represent SCMI agent identity explicitly instead of treating all A55 channels as one generic agent.",
     "Apply agent-specific permissions before returning domain/resource attributes or accepting state changes.",
-    "Separate A2P request channels from P2A notification/priority channels.",
-    "Use source-derived domain IDs and names instead of synthetic sequential names.",
+    "Use the exact seven-channel mx952evk SMT topology for A2P, P2A notification and M7 priority transport.",
+    "Use source-derived domain and resource IDs instead of synthetic sequential names.",
     "Advertise a protocol through Base discovery only when its implemented resource contract is available to that agent.",
     "Keep protocol behavior and permissions traceable to the pinned generated configuration.",
     "Do not convert SET-only sensor permissions into read access.",
     "Do not convert AP-NS LMM NOTIFY permission into lifecycle-control permission.",
-    "Keep deterministic sensor values and logical-machine timing explicitly classified as model inputs until correlated with physical EVK measurements."
+    "Do not expose AP-S to BBM because the pinned EVK configuration grants it no BBM resources.",
+    "Keep deterministic sensor, RTC, button and logical-machine timing/state inputs classified as functional-model evidence until correlated with the physical EVK.",
+    "Keep modeled P2A delivery separate from interrupt-latency and cycle-accuracy claims."
   ]
 }
