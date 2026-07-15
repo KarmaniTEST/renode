@@ -11,7 +11,6 @@ from __future__ import annotations
 import argparse
 import ast
 import json
-import sys
 from pathlib import Path
 from typing import Dict, List
 
@@ -27,6 +26,7 @@ PROTOCOL_CONSTANTS = {
     "0x14": "SCMI_PROTOCOL_CLOCK",
     "0x15": "SCMI_PROTOCOL_SENSOR",
     "0x19": "SCMI_PROTOCOL_PINCTRL",
+    "0x80": "SCMI_PROTOCOL_NXP_LMM",
     "0x82": "SCMI_PROTOCOL_NXP_CPU",
 }
 
@@ -36,6 +36,7 @@ VERSION_CONSTANTS = {
     "0x13": "SCMI_PERF_VERSION",
     "0x14": "SCMI_CLOCK_VERSION",
     "0x15": "SCMI_SENSOR_VERSION",
+    "0x80": "SCMI_NXP_LMM_VERSION",
 }
 
 
@@ -52,10 +53,6 @@ def integer_assignments(path: Path) -> Dict[str, int]:
         if isinstance(value, ast.Constant) and isinstance(value.value, int):
             result[target.id] = value.value
     return result
-
-
-def normalize_hex(value: int) -> str:
-    return f"0x{value:02X}"
 
 
 def main(argv: List[str] | None = None) -> int:
@@ -78,12 +75,10 @@ def main(argv: List[str] | None = None) -> int:
         if actual is None:
             errors.append(f"model is missing {constant_name} for implemented {protocol_id}")
             continue
-        if normalize_hex(actual) != protocol_id.upper().replace("0X", "0x"):
-            # Compare numerically to avoid formatting differences.
-            if actual != int(protocol_id, 16):
-                errors.append(
-                    f"{constant_name}={hex(actual)} does not match contract protocol {protocol_id}"
-                )
+        if actual != int(protocol_id, 16):
+            errors.append(
+                f"{constant_name}={hex(actual)} does not match contract protocol {protocol_id}"
+            )
 
     known_versions = contract.get("known_protocol_versions", {})
     for protocol_id, constant_name in VERSION_CONSTANTS.items():
@@ -108,6 +103,12 @@ def main(argv: List[str] | None = None) -> int:
         errors.append(f"unexpected i.MX952 device-sensor inventory: {sorted(sensor_ids)}")
     if constants.get("SENSOR_TEMP_ANA") != 0 or constants.get("SENSOR_TEMP_A55") != 1:
         errors.append("model sensor IDs do not match the pinned i.MX952 sensor header")
+
+    lm_ids = {entry["id"] for entry in contract.get("logical_machines", [])}
+    if lm_ids != {1, 2}:
+        errors.append(f"unexpected i.MX952 logical-machine inventory: {sorted(lm_ids)}")
+    if constants.get("LM_M7") != 1 or constants.get("LM_AP") != 2:
+        errors.append("model logical-machine IDs do not match the pinned mx952evk SCMI instances")
 
     result = {
         "verdict": "PASS" if not errors else "FAIL",
