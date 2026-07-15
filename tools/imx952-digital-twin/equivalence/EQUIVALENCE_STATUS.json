@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "target": "i.MX952 EVK B0",
+  "policy": "A subsystem may be promoted only when every required gate has reproducible evidence against the pinned physical reference.",
+  "levels": [
+    "NOT_MODELED",
+    "FUNCTIONAL_MODEL",
+    "PROTOCOL_EQUIVALENT",
+    "FIRMWARE_EQUIVALENT",
+    "TIMING_CORRELATED",
+    "CYCLE_ACCURATE",
+    "FULL_EQUIVALENCE"
+  ],
+  "subsystems": {
+    "a55_m7_heterogeneous_execution": {
+      "current_level": "FUNCTIONAL_MODEL",
+      "existing_evidence": ["tests/platforms/NXP_IMX952.robot"],
+      "missing_gates": ["physical_board_differential", "timing_correlation"]
+    },
+    "boot_rom_and_production_boot_chain": {
+      "current_level": "NOT_MODELED",
+      "missing_gates": ["reset_state", "boot_source_selection", "ahab_container", "oei", "ddr_training", "authentication", "atf_handoff", "uboot_handoff", "physical_board_differential"]
+    },
+    "edgelock_enclave": {
+      "current_level": "FUNCTIONAL_MODEL",
+      "existing_evidence": ["GET_INFO subset", "READ_FUSE subset", "GET_FW_STATUS subset"],
+      "missing_gates": ["complete_command_inventory", "error_paths", "lifecycle_states", "authentication_flows", "physical_board_differential"]
+    },
+    "system_manager": {
+      "current_level": "FUNCTIONAL_MODEL",
+      "existing_evidence": ["SCMI Base subset", "Clock subset", "Power subset", "NXP CPU protocol subset"],
+      "missing_gates": ["mx95evk_policy_inventory", "all_exposed_scmi_protocols", "resource_ownership", "power_domains", "clock_tree", "fault_reactions", "notifications", "physical_board_differential"]
+    },
+    "netc": {
+      "current_level": "NOT_MODELED",
+      "missing_gates": ["register_model", "descriptor_dma", "interrupts", "mdio_phy", "switching", "tsn", "rpmsg_partitioning", "production_driver", "traffic_differential", "timing_correlation"]
+    },
+    "usb": {
+      "current_level": "NOT_MODELED",
+      "missing_gates": ["controller_registers", "dma", "interrupts", "host", "device", "type_c_role", "production_driver", "protocol_differential", "timing_correlation"]
+    },
+    "gpu": {
+      "current_level": "NOT_MODELED",
+      "missing_gates": ["execution_capable_backend", "production_driver", "memory_semantics", "interrupts", "workload_output_differential", "timing_correlation"]
+    },
+    "npu": {
+      "current_level": "NOT_MODELED",
+      "missing_gates": ["execution_capable_backend", "production_runtime", "tensor_output_differential", "memory_semantics", "interrupts", "timing_correlation"]
+    },
+    "timing_and_performance": {
+      "current_level": "NOT_MODELED",
+      "missing_gates": ["silicon_measurement_plan", "clock_domains", "ddr_model", "interconnect_contention", "dma_concurrency", "interrupt_latency", "peripheral_latency", "accelerator_latency", "validated_tolerances"]
+    }
+  },
+  "program_gate": {
+    "current": "WP0_GOLDEN_REFERENCE_AND_DIFFERENTIAL_HARNESS",
+    "exit_criteria": [
+      "same test definition can target digital_twin and physical_board",
+      "reference evidence contains exact board, silicon and firmware identity",
+      "comparison produces machine-readable PASS/FAIL",
+      "no FULL_EQUIVALENCE claim is possible without hardware-correlated evidence"
+    ]
+  }
+}
