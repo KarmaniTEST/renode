@@ -1,0 +1,56 @@
+name: i.MX952 Digital Twin Qualification
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - imx952-digital-twin-ready
+    paths:
+      - "platforms/boards/nxp_imx952_evk.repl"
+      - "scripts/pydev/nxp_imx952_*.py"
+      - "scripts/single-node/nxp_imx952_*.resc"
+      - "tests/platforms/NXP_IMX952.robot"
+      - "tests/platforms/NXP_IMX952/**"
+      - "tools/imx952-digital-twin/**"
+      - ".github/workflows/imx952-digital-twin.yml"
+  pull_request:
+    paths:
+      - "platforms/boards/nxp_imx952_evk.repl"
+      - "scripts/pydev/nxp_imx952_*.py"
+      - "scripts/single-node/nxp_imx952_*.resc"
+      - "tests/platforms/NXP_IMX952.robot"
+      - "tests/platforms/NXP_IMX952/**"
+      - "tools/imx952-digital-twin/**"
+      - ".github/workflows/imx952-digital-twin.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    name: Clean runtime qualification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v4
+
+      - name: Pull official Renode nightly runtime
+        run: docker pull antmicro/renode:nightly-dotnet
+
+      - name: Run i.MX952 regression suite
+        run: |
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            antmicro/renode:nightly-dotnet \
+            bash -lc 'renode-test tests/platforms/NXP_IMX952.robot'
+
+      - name: Verify operator entry points are present
+        run: |
+          test -f tools/imx952-digital-twin/README.md
+          test -f tools/imx952-digital-twin/run.sh
+          test -f tools/imx952-digital-twin/run.ps1
+          test -f tools/imx952-digital-twin/qualify.sh
+          test -f scripts/single-node/nxp_imx952_evk_heterogeneous_demo.resc
