@@ -53,6 +53,7 @@ jobs:
           python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_contract.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_lmm_contract.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_bbm_contract.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/profiles/imx952_evk_b0_foundation.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_physical_reference.template.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_boot_artifacts.template.json >/dev/null
@@ -83,6 +84,7 @@ jobs:
             -v "$PWD/scripts/pydev/nxp_imx952_system_manager_full.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_full.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_system_manager_transport.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_transport.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_system_manager_bbm.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_bbm.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_misc.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_misc.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_ele.py:/opt/renode/scripts/pydev/nxp_imx952_ele.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_lpi2c7.py:/opt/renode/scripts/pydev/nxp_imx952_lpi2c7.py:ro" \
             -w /workspace \
@@ -91,11 +93,12 @@ jobs:
               tests/platforms/NXP_IMX952.robot \
               tests/platforms/NXP_IMX952_FULL_EQUIVALENCE.robot \
               tests/platforms/NXP_IMX952_BBM.robot \
+              tests/platforms/NXP_IMX952_MISC.robot \
             > imx952-qualification.log 2>&1
           status=$?
           echo "Qualification exit status: ${status}"
           echo "----- qualification log tail -----"
-          tail -n 350 imx952-qualification.log || true
+          tail -n 400 imx952-qualification.log || true
           echo "----- end qualification log tail -----"
           exit "${status}"
 
@@ -130,12 +133,15 @@ jobs:
             test -f tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_contract.json
             test -f tools/imx952-digital-twin/equivalence/contracts/imx952_lmm_contract.json
             test -f tools/imx952-digital-twin/equivalence/contracts/imx952_bbm_contract.json
+            test -f tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json
             test -f tools/imx952-digital-twin/equivalence/DEEP_GAP_ANALYSIS.md
           fi
           test -f platforms/boards/nxp_imx952_evk_full.repl
           test -f scripts/pydev/nxp_imx952_system_manager_transport.py
           test -f scripts/pydev/nxp_imx952_system_manager_bbm.py
+          test -f scripts/pydev/nxp_imx952_system_manager_misc.py
           test -f tests/platforms/NXP_IMX952_FULL_EQUIVALENCE.robot
           test -f tests/platforms/NXP_IMX952_BBM.robot
+          test -f tests/platforms/NXP_IMX952_MISC.robot
           test -f scripts/single-node/nxp_imx952_evk_full.resc
           test -f scripts/single-node/nxp_imx952_evk_heterogeneous_demo.resc
