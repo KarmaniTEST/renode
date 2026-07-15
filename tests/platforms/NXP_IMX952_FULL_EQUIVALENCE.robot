@@ -54,14 +54,15 @@ AP Secure And Nonsecure Agents Expose Source Derived Core Protocols
     Should Be Equal As Numbers    ${ap_s_status}    0
     Should Be Equal As Numbers    ${ap_s_attrs}     0x00000305
 
-    # AP-NS exposes the same implemented core protocol count on its independent channel.
+    # AP-NS additionally advertises Sensor because its generated policy grants
+    # readable access to the A55 temperature sensor.
     Call AP NS    0x00004001
     ${ap_ns_status}=    Read Dword    ${AP_NS_PAYLOAD}
     ${ap_ns_attrs}=     Read Dword    0x445B10A0
     Should Be Equal As Numbers    ${ap_ns_status}    0
-    Should Be Equal As Numbers    ${ap_ns_attrs}     0x00000305
+    Should Be Equal As Numbers    ${ap_ns_attrs}     0x00000306
 
-System Power And Performance Versions Match NXP System Manager Sources
+System Power Performance And Sensor Versions Match NXP System Manager Sources
     Create Full Candidate
     # System protocol 0x12 / PROTOCOL_VERSION.
     Call AP NS    0x00004800
@@ -76,6 +77,13 @@ System Power And Performance Versions Match NXP System Manager Sources
     ${perf_version}=    Read Dword    0x445B10A0
     Should Be Equal As Numbers    ${perf_status}     0
     Should Be Equal As Numbers    ${perf_version}    0x00040000
+
+    # Sensor protocol 0x15 / PROTOCOL_VERSION.
+    Call AP NS    0x00005400
+    ${sensor_status}=     Read Dword    ${AP_NS_PAYLOAD}
+    ${sensor_version}=    Read Dword    0x445B10A0
+    Should Be Equal As Numbers    ${sensor_status}     0
+    Should Be Equal As Numbers    ${sensor_version}    0x00030001
 
 AP Secure And Nonsecure Performance Permissions Are Different
     Create Full Candidate
@@ -117,7 +125,24 @@ AP Secure And Nonsecure Power Permissions Are Different
     ${ap_ns_hsio_status}=    Read Dword    ${AP_NS_PAYLOAD}
     Should Be Equal As Numbers    ${ap_ns_hsio_status}    0
 
-M7 Agent Has Independent Performance Permission
+AP Nonsecure Sensor Access Is Restricted To A55 Temperature
+    Create Full Candidate
+    # AP-NS may read the A55 temperature sensor (sensor ID 1).
+    Write Dword    ${AP_NS_PAYLOAD}    1
+    Call AP NS     0x00005406
+    ${a55_sensor_status}=    Read Dword    ${AP_NS_PAYLOAD}
+    ${a55_sensor_value}=     Read Dword    0x445B10A0
+    Should Be Equal As Numbers    ${a55_sensor_status}    0
+    Should Be Equal As Numbers    ${a55_sensor_value}     50000
+
+    # AP-NS does not gain read access to ANA merely because the generated policy
+    # contains a SET-only permission for that sensor.
+    Write Dword    ${AP_NS_PAYLOAD}    0
+    Call AP NS     0x00005406
+    ${ana_status}=    Read Dword    ${AP_NS_PAYLOAD}
+    Should Be Equal As Numbers    ${ana_status}    0xFFFFFFFD
+
+M7 Agent Has Independent Performance And Sensor Permissions
     Create Full Candidate
     # M7 agent can read M7 performance domain 2.
     Write Dword    ${M7_PAYLOAD}    2
@@ -126,3 +151,17 @@ M7 Agent Has Independent Performance Permission
     ${m7_level}=     Read Dword    0x44611020
     Should Be Equal As Numbers    ${m7_status}    0
     Should Be Equal As Numbers    ${m7_level}     2
+
+    # M7 agent can read ANA temperature sensor 0.
+    Write Dword    ${M7_PAYLOAD}    0
+    Call M7 Agent    0x00005406
+    ${m7_sensor_status}=    Read Dword    ${M7_PAYLOAD}
+    ${m7_sensor_value}=     Read Dword    0x44611020
+    Should Be Equal As Numbers    ${m7_sensor_status}    0
+    Should Be Equal As Numbers    ${m7_sensor_value}     45000
+
+    # M7 must not read the A55 temperature sensor.
+    Write Dword    ${M7_PAYLOAD}    1
+    Call M7 Agent    0x00005406
+    ${m7_a55_status}=    Read Dword    ${M7_PAYLOAD}
+    Should Be Equal As Numbers    ${m7_a55_status}    0xFFFFFFFD
