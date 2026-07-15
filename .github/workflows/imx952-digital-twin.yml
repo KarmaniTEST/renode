@@ -48,7 +48,7 @@ jobs:
             -v "$PWD:/workspace" \
             -w /workspace \
             antmicro/renode:nightly-dotnet \
-            bash -lc 'renode --version && command -v renode-test && renode-test tests/platforms/NXP_IMX952.robot' \
+            bash -lc 'command -v renode-test && renode-test tests/platforms/NXP_IMX952.robot' \
             > imx952-qualification.log 2>&1
           status=$?
           echo "Qualification exit status: ${status}"
