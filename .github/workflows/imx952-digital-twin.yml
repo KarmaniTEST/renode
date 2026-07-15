@@ -52,6 +52,20 @@ jobs:
           python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_contract.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/profiles/imx952_evk_b0_foundation.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_physical_reference.template.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_boot_artifacts.template.json >/dev/null
+
+      - name: Verify full physical gate fails closed without evidence
+        shell: bash
+        run: |
+          set +e
+          python3 tools/imx952-digital-twin/equivalence/qualification_gate.py \
+            --mode full-physical \
+            --skip-tests \
+            > imx952-full-physical-gate.log 2>&1
+          status=$?
+          cat imx952-full-physical-gate.log
+          test "${status}" -eq 2
+          grep -q '"verdict": "BLOCKED"' imx952-full-physical-gate.log
 
       - name: Pull official Renode nightly runtime
         run: docker pull antmicro/renode:nightly-dotnet
@@ -86,6 +100,7 @@ jobs:
           name: imx952-qualification-log
           path: |
             imx952-qualification.log
+            imx952-full-physical-gate.log
             logs/**/*.log
           if-no-files-found: warn
 
@@ -97,9 +112,12 @@ jobs:
             test -f tools/imx952-digital-twin/run.sh
             test -f tools/imx952-digital-twin/run.ps1
             test -f tools/imx952-digital-twin/qualify.sh
+            test -f tools/imx952-digital-twin/qualify-full.sh
+            test -f tools/imx952-digital-twin/qualify-full.ps1
             test -f tools/imx952-digital-twin/equivalence/collect_evidence.py
             test -f tools/imx952-digital-twin/equivalence/compare_evidence.py
             test -f tools/imx952-digital-twin/equivalence/qualification_gate.py
+            test -f tools/imx952-digital-twin/equivalence/validate_boot_artifacts.py
             test -f tools/imx952-digital-twin/equivalence/AUTHORITATIVE_BASELINE.json
             test -f tools/imx952-digital-twin/equivalence/EQUIVALENCE_STATUS.json
             test -f tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_contract.json
@@ -107,4 +125,5 @@ jobs:
           fi
           test -f platforms/boards/nxp_imx952_evk_full.repl
           test -f tests/platforms/NXP_IMX952_FULL_EQUIVALENCE.robot
+          test -f scripts/single-node/nxp_imx952_evk_full.resc
           test -f scripts/single-node/nxp_imx952_evk_heterogeneous_demo.resc
