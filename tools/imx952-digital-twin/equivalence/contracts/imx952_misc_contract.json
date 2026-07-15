@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "target": "i.MX952 EVK",
   "protocol": {
     "id": "0x84",
@@ -9,6 +9,7 @@
       "repository": "nxp-imx/imx-sm",
       "commit": "44f76dcb32945a60e08ea0133700b820349efbd3",
       "implementation": "sm/rpc/scmi/rpc_scmi_misc.c",
+      "device_common": "devices/MIMX952/sm/dev_sm_common.c",
       "device_control_header": "devices/MIMX952/sm/dev_sm_control.h",
       "board_control_header": "boards/mcimx952evk/sm/brd_sm_control.h",
       "generated_config": "configs/mx952evk/config_scmi.h"
@@ -71,19 +72,26 @@
         "reason": "Source-assigned AP-NS control relevant to future PCIe/NETC HSIO bring-up."
       }
     ],
-    "read_only_metadata_messages": [
-      "MISC_DISCOVER_BUILD_INFO",
-      "MISC_RESET_REASON",
-      "MISC_SI_INFO",
-      "MISC_CFG_INFO",
-      "MISC_BOARD_INFO"
-    ]
+    "safe_metadata": {
+      "MISC_SI_INFO": {
+        "model_policy": "Return i.MX952 identity and baseline revision name only; physical device ID, fuse revision and part-number words remain zero until board evidence is captured."
+      },
+      "MISC_CFG_INFO": {
+        "model_policy": "Return pinned mx952evk configuration identity, not a fabricated hardware mode-selector value."
+      },
+      "MISC_BOARD_INFO": {
+        "model_policy": "Return i.MX952 EVK board identity with zero unmeasured board-specific attributes."
+      },
+      "MISC_DISCOVER_BUILD_INFO": {
+        "model_policy": "Return deterministic model-build identity tied to the pinned NXP source commit, not an NXP production firmware build number."
+      }
+    }
   },
   "implementation_policy": [
     "Do not advertise MISC to AP-S until a source-derived accessible message/resource contract for AP-S is established.",
     "Do not expose device controls beyond explicit generated-config permissions.",
     "COMBO_PHY state is a functional control model and does not claim PCIe/NETC PHY electrical equivalence.",
-    "Silicon/config/board/build metadata must remain tied to the pinned target baseline and must not impersonate unmeasured physical fuse values.",
-    "Extended controls, ROM passover, syslog, DDR info and reset-reason detail remain unimplemented until their source-derived data contracts are qualified."
+    "MISC_SI_INFO must not impersonate physical fuse-derived values; unmeasured numeric silicon fields stay zero while the textual target identity is source-derived.",
+    "Extended controls, ROM passover, syslog, DDR info and detailed reset-reason semantics remain unimplemented until their source-derived data contracts are qualified."
   ]
 }
