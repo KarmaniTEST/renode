@@ -13,12 +13,14 @@
 // - functional early-boot ELE MU service
 // - functional LPI2C7 path with the EVK USB Type-C controller
 // - native USDHC1/2/3 storage controllers
+// - native dual-endpoint MU7 for A55 <-> M7 messaging
 //
 // Scope limitation:
 // This is initial boot-capable platform support, not a complete hardware-faithful
 // SoC model. Boot ROM, the complete ELE/System Manager firmware surface, GIC ITS,
-// NETC and populated boot-media images are future work. M7-side MU windows remain
-// memory-backed until the corresponding inter-core mailbox model is implemented.
+// NETC and populated boot-media images are future work. The M7-side MU5/SCMI
+// transport remains memory-backed until its dedicated System Manager endpoint is
+// modeled.
 
 a55Cluster: CPU.Cluster @ sysbus
 
@@ -145,10 +147,6 @@ m7Itcm: Memory.MappedMemory @ sysbus 0x00000000
 m7Dtcm: Memory.MappedMemory @ sysbus 0x20000000
     size: 0x00040000
 
-// A55-side MU7 from the NXP Linux DTSI. Functional MU7 behavior is future work.
-a55Mu7Stub: Memory.MappedMemory @ sysbus 0x42050000
-    size: 0x00010000
-
 // A55 System Manager transport. The 0x1400 window contains MU2 followed by
 // the SCMI SRAM with two SMT channels.
 systemManager: Python.PythonPeripheral @ sysbus 0x445B0000
@@ -168,6 +166,23 @@ lpi2c7: Python.PythonPeripheral @ sysbus 0x422F0000
     initable: true
     filename: "scripts/pydev/nxp_imx952_lpi2c7.py"
 
+// Native MU v2-compatible dual endpoint used for A55 <-> M7 messaging.
+// A55 MU7 is SPI 234 (GIC interrupt ID 266); M7 MU7 is NVIC IRQ 207.
+mu7: Miscellaneous.IMXRT700_MessagingUnit @ {
+    sysbus new Bus.BusMultiRegistration {
+        address: 0x42050000;
+        size: 0x00010000;
+        region: "aInstance"
+    };
+    sysbus new Bus.BusMultiRegistration {
+        address: 0x42440000;
+        size: 0x00001000;
+        region: "bInstance"
+    }
+}
+    AInstanceIRQ -> gic@266
+    BInstanceIRQ -> m7Nvic@207
+
 // i.MX 952 USDHC controllers. Linux GIC SPI IDs are translated to absolute
 // GIC interrupt IDs by adding the 32 SGI/PPI lines.
 usdhc1: SD.NXP_uSDHC @ sysbus 0x42C20000
@@ -186,8 +201,3 @@ m7Mu5Stub: Memory.MappedMemory @ sysbus 0x44610000
 
 m7ScmiShmem: Memory.MappedMemory @ sysbus 0x44611000
     size: 0x00000080
-
-// Additional M7-side MU7 window. It is disabled by default in the public DTS,
-// but the address is represented so firmware accesses are retained.
-m7Mu7Stub: Memory.MappedMemory @ sysbus 0x42440000
-    size: 0x00001000
