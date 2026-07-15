@@ -152,4 +152,4 @@ LPI2C7 Reads EVK Type C Controller Identity And NACKs Unknown Devices
     Write Dword    0x422F0014    0x00007F00
     Write Dword    0x422F0060    0x000004A2
     ${unknown_status}=    Read Dword    0x422F0014
-    Should Be Equal As Numbers    ${unknown_status} & 0x00000400    0x00000400
+    Should Be Equal As Numbers    ${unknown_status}    0x00000400
