@@ -197,6 +197,7 @@
 - tests/unit-tests/instructions-counting.robot
 - tests/unit-tests/timer-reconfiguration.robot
 - tests/platforms/S32K388.robot
+- tests/platforms/NXP_IMX952.robot
 - tests/unit-tests/bus-isolation.robot
 - tests/unit-tests/bus-performance.robot
 - tests/unit-tests/profiler-trace.robot
