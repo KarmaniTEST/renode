@@ -1,5 +1,5 @@
 {
-  "schema_version": 4,
+  "schema_version": 5,
   "target": "i.MX952 EVK",
   "source": {
     "repository": "nxp-imx/imx-sm",
@@ -14,7 +14,11 @@
     "lmm_protocol": "sm/rpc/scmi/rpc_scmi_lmm.c",
     "bbm_protocol": "sm/rpc/scmi/rpc_scmi_bbm.c",
     "bbm_device_header": "devices/MIMX952/sm/dev_sm_bbm.h",
-    "bbm_board_header": "boards/mcimx952evk/sm/brd_sm_bbm.h"
+    "bbm_board_header": "boards/mcimx952evk/sm/brd_sm_bbm.h",
+    "misc_protocol": "sm/rpc/scmi/rpc_scmi_misc.c",
+    "misc_device_control_header": "devices/MIMX952/sm/dev_sm_control.h",
+    "misc_board_control_header": "boards/mcimx952evk/sm/brd_sm_control.h",
+    "misc_device_common": "devices/MIMX952/sm/dev_sm_common.c"
   },
   "agents": [
     {
@@ -28,7 +32,8 @@
       "lmm_full_control": [2],
       "bbm_rtc": [0, 1],
       "bbm_button": [0],
-      "bbm_gpr": []
+      "bbm_gpr": [],
+      "misc_controls": []
     },
     {
       "id": 1,
@@ -42,7 +47,8 @@
       "lmm_notify": [],
       "bbm_rtc": [],
       "bbm_button": [],
-      "bbm_gpr": []
+      "bbm_gpr": [],
+      "misc_controls": []
     },
     {
       "id": 2,
@@ -57,7 +63,8 @@
       "lmm_notify": [1],
       "bbm_rtc": [0, 1],
       "bbm_button": [0],
-      "bbm_gpr": [4, 5, 6, 7]
+      "bbm_gpr": [4, 5, 6, 7],
+      "misc_controls": [9]
     }
   ],
   "performance_domains": [
@@ -98,6 +105,22 @@
       {"id": 0, "name": "BBM_BUTTON_0"}
     ]
   },
+  "misc_first_slice": {
+    "agent": "AP-NS",
+    "controls": [
+      {"id": 9, "name": "COMBO_PHY", "permission": "ALL"}
+    ],
+    "functional_metadata": [
+      "MISC_DISCOVER_BUILD_INFO",
+      "MISC_RESET_REASON",
+      "MISC_SI_INFO",
+      "MISC_CFG_INFO",
+      "MISC_SYSLOG",
+      "MISC_BOARD_INFO",
+      "MISC_DDR_INFO_GET"
+    ],
+    "qualification_boundary": "Physical fuse-derived numeric silicon fields remain zero; COMBO_PHY is stateful functional control only and does not claim PHY electrical equivalence."
+  },
   "smt_channels": [
     {"global_id": 0, "agent": "M7", "direction": "A2P"},
     {"global_id": 1, "agent": "M7", "direction": "P2A_NOTIFY"},
@@ -128,7 +151,8 @@
     "0x16": "0x00030001",
     "0x17": "0x00020001",
     "0x80": "0x00010001",
-    "0x81": "0x00010000"
+    "0x81": "0x00010000",
+    "0x84": "0x00010001"
   },
   "candidate_implemented_protocols": [
     "0x10",
@@ -140,7 +164,8 @@
     "0x19",
     "0x80",
     "0x81",
-    "0x82"
+    "0x82",
+    "0x84"
   ],
   "pinned_not_yet_advertised": [
     {
@@ -152,11 +177,6 @@
       "id": "0x17",
       "name": "VOLTAGE",
       "reason": "The Linux-visible i.MX952 target contract does not expose this protocol; exact EVK voltage-domain permissions must be established before optional advertisement."
-    },
-    {
-      "id": "0x84",
-      "name": "NXP_MISC",
-      "reason": "Vendor control/resource contract is being derived; the protocol is not advertised until explicit i.MX952 EVK permissions and implemented messages are qualified."
     }
   ],
   "model_refactor_requirements": [
@@ -169,7 +189,9 @@
     "Do not convert SET-only sensor permissions into read access.",
     "Do not convert AP-NS LMM NOTIFY permission into lifecycle-control permission.",
     "Do not expose AP-S to BBM because the pinned EVK configuration grants it no BBM resources.",
-    "Keep deterministic sensor, RTC, button and logical-machine timing/state inputs classified as functional-model evidence until correlated with the physical EVK.",
+    "Do not expose MISC controls beyond explicit generated-config permissions; first-slice AP-NS access is COMBO_PHY only.",
+    "Do not fabricate physical fuse-derived MISC silicon fields; keep unmeasured numeric fields zero until EVK evidence exists.",
+    "Keep deterministic sensor, RTC, button, reset-reason and logical-machine timing/state inputs classified as functional-model evidence until correlated with the physical EVK.",
     "Keep modeled P2A delivery separate from interrupt-latency and cycle-accuracy claims."
   ]
 }
