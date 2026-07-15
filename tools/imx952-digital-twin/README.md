@@ -36,7 +36,7 @@ On Windows PowerShell:
 ./tools/imx952-digital-twin/run.ps1 demo
 ```
 
-The demo loads deterministic A55 and M7 firmware and prepares the heterogeneous lifecycle scenario. Use the Renode Monitor to run, inspect memory and debug both processing domains.
+The demo loads deterministic A55 and M7 firmware and prepares the heterogeneous lifecycle scenario. Use the Renode Monitor to run, inspect memory and debug both processing domains. The Renode scripts use `$ORIGIN`-relative paths, so the demo does not depend on the caller's working directory.
 
 ## Qualification
 
@@ -54,7 +54,7 @@ bash tools/imx952-digital-twin/qualify.sh local
 bash tools/imx952-digital-twin/qualify.sh docker
 ```
 
-`auto` uses a locally installed `renode-test` when available and otherwise falls back to the official `antmicro/renode:nightly-dotnet` container.
+`auto` uses a built Renode runtime from this repository when available and otherwise falls back to the official `antmicro/renode:nightly-dotnet` container. Docker qualification mounts the custom i.MX952 Python peripherals into the clean Renode runtime so the same checked-in model files are tested without modifying the host installation.
 
 The qualification target is:
 
