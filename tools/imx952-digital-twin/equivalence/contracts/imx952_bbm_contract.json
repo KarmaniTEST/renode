@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "target": "i.MX952 EVK",
+  "protocol": {
+    "id": "0x81",
+    "name": "NXP_BBM",
+    "version": "0x00010000",
+    "source": {
+      "repository": "nxp-imx/imx-sm",
+      "commit": "44f76dcb32945a60e08ea0133700b820349efbd3",
+      "implementation": "sm/rpc/scmi/rpc_scmi_bbm.c",
+      "device_header": "devices/MIMX952/sm/dev_sm_bbm.h",
+      "board_header": "boards/mcimx952evk/sm/brd_sm_bbm.h",
+      "generated_config": "configs/mx952evk/config_scmi.h"
+    }
+  },
+  "messages": [
+    {"id": "0x00", "name": "PROTOCOL_VERSION"},
+    {"id": "0x01", "name": "PROTOCOL_ATTRIBUTES"},
+    {"id": "0x02", "name": "PROTOCOL_MESSAGE_ATTRIBUTES"},
+    {"id": "0x03", "name": "BBM_GPR_SET"},
+    {"id": "0x04", "name": "BBM_GPR_GET"},
+    {"id": "0x05", "name": "BBM_RTC_ATTRIBUTES"},
+    {"id": "0x06", "name": "BBM_RTC_TIME_SET"},
+    {"id": "0x07", "name": "BBM_RTC_TIME_GET"},
+    {"id": "0x08", "name": "BBM_RTC_ALARM_SET"},
+    {"id": "0x09", "name": "BBM_BUTTON_GET"},
+    {"id": "0x0A", "name": "BBM_RTC_NOTIFY"},
+    {"id": "0x0B", "name": "BBM_BUTTON_NOTIFY"},
+    {"id": "0x0C", "name": "BBM_RTC_STATE"},
+    {"id": "0x10", "name": "NEGOTIATE_PROTOCOL_VERSION"}
+  ],
+  "resources": {
+    "gprs": [0, 1, 2, 3, 4, 5, 6, 7],
+    "rtcs": [
+      {"id": 0, "name": "BBNSM"},
+      {"id": 1, "name": "PCA2131"}
+    ],
+    "buttons": [
+      {"id": 0, "name": "BBM_BUTTON_0"}
+    ]
+  },
+  "agent_permissions": [
+    {
+      "agent_id": 0,
+      "agent": "M7",
+      "gpr": {},
+      "rtc": {"0": "PRIV", "1": "ALL"},
+      "button": {"0": "NOTIFY"}
+    },
+    {
+      "agent_id": 1,
+      "agent": "AP-S",
+      "gpr": {},
+      "rtc": {},
+      "button": {}
+    },
+    {
+      "agent_id": 2,
+      "agent": "AP-NS",
+      "gpr": {"4": "ALL", "5": "ALL", "6": "ALL", "7": "ALL"},
+      "rtc": {"0": "ALL", "1": "PRIV"},
+      "button": {"0": "ALL"}
+    }
+  ],
+  "permission_semantics": {
+    "source": "sm/doc/config.md",
+    "hierarchy": ["NONE", "GET", "NOTIFY", "SET", "PRIV", "EXCLUSIVE", "ALL"],
+    "rule": "Higher permissions imply lower permissions. PRIV therefore includes GET/NOTIFY/SET but is not promoted to ALL."
+  },
+  "implementation_policy": [
+    "Do not advertise BBM to AP-S because the pinned EVK policy grants no BBM resource permission.",
+    "AP-NS GPR access is restricted to GPR4 through GPR7.",
+    "M7 has no GPR access in the pinned configuration.",
+    "RTC0 is BBNSM and RTC1 is the EVK PCA2131 board RTC.",
+    "RTC time and button state are deterministic functional-model inputs until physical-EVK correlation exists.",
+    "BBM event delivery must use the modeled P2A notification transport before notification coverage can be promoted."
+  ]
+}
