@@ -2,10 +2,9 @@
 """Generate the exact i.MX952 EVK SCMI clock-permission map from pinned NXP source.
 
 NXP's MIMX952 clock header maps DEV_SM_CLK_* symbols onto SDK CLOCK_* symbols and
-also records the stable System Manager numeric ID in each generated Doxygen comment,
-for example `/*!< 44: CAN1 root */`. The generator therefore derives numeric IDs
-from those source annotations and permissions from the generated mx952evk SCMI
-configuration. The output records SHA-256 hashes of both source files.
+records the stable System Manager numeric ID in generated Doxygen annotations such
+as `/*!< 44: CAN1 root */`. Some definitions span multiple lines, so the parser
+associates each annotation with the most recent DEV_SM_CLK_* definition.
 """
 
 from __future__ import annotations
@@ -26,9 +25,10 @@ RAW_BASE = f"https://raw.githubusercontent.com/{PINNED_REPOSITORY}/{PINNED_COMMI
 
 AGENT_NAMES = {0: "M7", 1: "AP-S", 2: "AP-NS"}
 
-CLOCK_ANNOTATION_RE = re.compile(
-    r"^\s*#define\s+(DEV_SM_CLK_[A-Z0-9_]+)\s+.+?/\*!<\s*([0-9]+)\s*:"
+CLOCK_DEFINE_RE = re.compile(
+    r"^\s*#define\s+(DEV_SM_CLK_[A-Z0-9_]+)\b"
 )
+CLOCK_ID_ANNOTATION_RE = re.compile(r"/\*!<\s*([0-9]+)\s*:")
 AGENT_DEFINE_RE = re.compile(r"^\s*#define\s+SM_SCMI_AGNT([0-9]+)_CONFIG\b")
 CLOCK_PERMISSION_RE = re.compile(
     r"\.clkPerms\[(DEV_SM_CLK_[A-Z0-9_]+)\]\s*=\s*(SM_SCMI_PERM_[A-Z0-9_]+)"
@@ -57,16 +57,30 @@ def load_text(path: Path | None, url: str) -> Tuple[str, str]:
 
 def parse_clock_ids(header_text: str) -> Dict[str, int]:
     result: Dict[str, int] = {}
+    current_symbol: str | None = None
+
     for line in header_text.splitlines():
-        match = CLOCK_ANNOTATION_RE.match(line)
-        if match:
-            symbol = match.group(1)
-            clock_id = int(match.group(2), 10)
-            if symbol in result and result[symbol] != clock_id:
+        define_match = CLOCK_DEFINE_RE.match(line)
+        if define_match:
+            current_symbol = define_match.group(1)
+
+        annotation_match = CLOCK_ID_ANNOTATION_RE.search(line)
+        if annotation_match and current_symbol is not None:
+            clock_id = int(annotation_match.group(1), 10)
+            if current_symbol in result and result[current_symbol] != clock_id:
                 raise ValueError(
-                    f"clock symbol {symbol} has conflicting IDs {result[symbol]} and {clock_id}"
+                    f"clock symbol {current_symbol} has conflicting IDs "
+                    f"{result[current_symbol]} and {clock_id}"
                 )
-            result[symbol] = clock_id
+            result[current_symbol] = clock_id
+            current_symbol = None
+
+        # A new unrelated preprocessor definition means a pending clock macro
+        # ended without an ID annotation; do not accidentally associate a later
+        # comment with it.
+        if (line.lstrip().startswith("#define ") and
+                define_match is None and current_symbol is not None):
+            current_symbol = None
 
     if not result:
         raise ValueError(
@@ -95,7 +109,6 @@ def parse_agent_clock_permissions(config_text: str) -> Dict[int, List[Tuple[str,
                 (permission_match.group(1), permission_match.group(2))
             )
 
-        # Generated agent macro closes on a standalone `}`.
         if line.strip().rstrip("\\").strip() == "}":
             current_agent = None
 
