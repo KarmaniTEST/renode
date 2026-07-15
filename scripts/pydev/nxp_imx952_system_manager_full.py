@@ -12,6 +12,7 @@
 # - Clock         0x14, NXP SM version 3.0
 # - Sensor        0x15, NXP SM version 3.1
 # - Pinctrl       0x19
+# - NXP LMM       0x80, NXP SM version 1.1
 # - NXP CPU       0x82 (M7 agent compatibility path)
 #
 # Agent mapping follows the generated mx952evk System Manager configuration:
@@ -20,7 +21,7 @@
 #   one-channel M7 endpoint -> M7 (agent 0)
 #
 # The candidate only advertises a protocol to an agent when the implemented
-# contract has at least one source-derived resource available to that agent.
+# contract has at least one source-derived resource/permission for that agent.
 
 from Antmicro.Renode.Core import EmulationManager
 from Antmicro.Renode.Peripherals.CPU import RegisterValue
@@ -52,6 +53,7 @@ SCMI_PROTOCOL_PERF = 0x13
 SCMI_PROTOCOL_CLOCK = 0x14
 SCMI_PROTOCOL_SENSOR = 0x15
 SCMI_PROTOCOL_PINCTRL = 0x19
+SCMI_PROTOCOL_NXP_LMM = 0x80
 SCMI_PROTOCOL_NXP_CPU = 0x82
 
 SCMI_BASE_VERSION = 0x00020000
@@ -61,6 +63,7 @@ SCMI_PERF_VERSION = 0x00040000
 SCMI_CLOCK_VERSION = 0x00030000
 SCMI_SENSOR_VERSION = 0x00030001
 SCMI_PINCTRL_VERSION = 0x00010000
+SCMI_NXP_LMM_VERSION = 0x00010001
 SCMI_NXP_CPU_VERSION = 0x00010000
 
 AGENT_M7 = 0
@@ -149,10 +152,6 @@ SENSOR_NAMES = {
     SENSOR_TEMP_ANA: "TEMP_ANA",
     SENSOR_TEMP_A55: "TEMP_A55",
 }
-# The generated mx952evk policy grants M7 full access to ANA and AP-NS full
-# access to A55. AP-S has no device-sensor permission. AP-NS has SET-only ANA
-# permission in the source policy, which is intentionally not promoted to read
-# access in this candidate.
 SENSOR_READ_PERMISSIONS = {
     AGENT_M7: set([SENSOR_TEMP_ANA]),
     AGENT_AP_S: set(),
@@ -161,6 +160,29 @@ SENSOR_READ_PERMISSIONS = {
 SENSOR_DEFAULT_VALUES = {
     SENSOR_TEMP_ANA: 45000,
     SENSOR_TEMP_A55: 50000,
+}
+
+# Logical-machine IDs and permissions from configs/mx952evk/config_scmi.h.
+LM_M7 = 1
+LM_AP = 2
+LMM_STATE_OFF = 0
+LMM_STATE_ON = 1
+LMM_STATE_SUSPEND = 2
+
+LMM_FULL_PERMISSIONS = {
+    AGENT_M7: set([LM_AP]),
+}
+LMM_NOTIFY_PERMISSIONS = {
+    AGENT_M7: set([LM_AP]),
+    AGENT_AP_NS: set([LM_M7]),
+}
+LMM_NAMES = {
+    LM_M7: "M7-LM",
+    LM_AP: "AP-LM",
+}
+LMM_AGENT_COUNTS = {
+    LM_M7: 1,
+    LM_AP: 2,
 }
 
 IMX952_M7_CPUID = 1
@@ -246,6 +268,9 @@ def _protocols_for_agent(agent_id):
     if SENSOR_READ_PERMISSIONS.get(agent_id, set()):
         protocols.append(SCMI_PROTOCOL_SENSOR)
     protocols.append(SCMI_PROTOCOL_PINCTRL)
+    if (LMM_FULL_PERMISSIONS.get(agent_id, set()) or
+            LMM_NOTIFY_PERMISSIONS.get(agent_id, set())):
+        protocols.append(SCMI_PROTOCOL_NXP_LMM)
     if agent_id == AGENT_M7:
         protocols.append(SCMI_PROTOCOL_NXP_CPU)
     return protocols
@@ -577,7 +602,6 @@ def _process_sensor(channel, message_id, agent_id):
     if message_id == 0x00:
         _set_response(channel, SCMI_SUCCESS, [SCMI_SENSOR_VERSION])
     elif message_id == 0x01:
-        # max pending asynchronous reads = 0; low 16 bits = number of sensors.
         _set_response(channel, SCMI_SUCCESS, [len(allowed), 0, 0, 0])
     elif message_id == 0x02:
         _message_attributes(channel, _read32(base + SMT_PAYLOAD),
@@ -588,13 +612,10 @@ def _process_sensor(channel, message_id, agent_id):
             _set_response(channel, SCMI_NOT_FOUND, [])
         else:
             sensor_id = allowed[desc_index]
-            # One descriptor, zero remaining. Descriptor layout after flags:
-            # sensorId, attributesLow, attributesHigh, 16-byte name.
             _write32(base + SMT_PAYLOAD, SCMI_SUCCESS)
             _write32(base + SMT_PAYLOAD + 4, 1)
             _write32(base + SMT_PAYLOAD + 8, sensor_id)
             _write32(base + SMT_PAYLOAD + 12, 0)
-            # Sensor type 2 is temperature in the SCMI sensor type namespace.
             _write32(base + SMT_PAYLOAD + 16, 2)
             _write_ascii(base + SMT_PAYLOAD + 20, SENSOR_NAMES[sensor_id], 16)
             _write32(base + SMT_LENGTH, 44)
@@ -656,6 +677,85 @@ def _process_pinctrl(channel, message_id, agent_id):
                             set([0, 1, 2, 6]))
     elif message_id == 0x06:
         _set_response(channel, SCMI_SUCCESS, [])
+    else:
+        _set_response(channel, SCMI_NOT_SUPPORTED, [])
+
+
+def _lmm_full(agent_id, lm_id):
+    return lm_id in LMM_FULL_PERMISSIONS.get(agent_id, set())
+
+
+def _lmm_notify(agent_id, lm_id):
+    return lm_id in LMM_NOTIFY_PERMISSIONS.get(agent_id, set())
+
+
+def _process_lmm(channel, message_id, agent_id):
+    base = SCMI_SRAM + channel * SCMI_CHANNEL_SIZE
+    has_protocol = (LMM_FULL_PERMISSIONS.get(agent_id, set()) or
+                    LMM_NOTIFY_PERMISSIONS.get(agent_id, set()))
+    if not has_protocol:
+        _set_response(channel, SCMI_DENIED, [])
+        return
+    if message_id == 0x00:
+        _set_response(channel, SCMI_SUCCESS, [SCMI_NXP_LMM_VERSION])
+    elif message_id == 0x01:
+        _set_response(channel, SCMI_SUCCESS, [2])
+    elif message_id == 0x02:
+        _message_attributes(channel, _read32(base + SMT_PAYLOAD),
+                            set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+                                 0xA, 0xB, 0xC, 0x10]))
+    elif message_id == 0x03:
+        lm_id = _read32(base + SMT_PAYLOAD)
+        if not _lmm_full(agent_id, lm_id):
+            _set_response(channel, SCMI_DENIED, [])
+        else:
+            _set_response(channel, SCMI_SUCCESS,
+                          [lm_id, LMM_AGENT_COUNTS.get(lm_id, 0),
+                           lmm_states.get(lm_id, LMM_STATE_OFF),
+                           lmm_errors.get(lm_id, 0)],
+                          LMM_NAMES.get(lm_id, "LM-%d" % lm_id), 20, 16)
+    elif message_id in set([0x04, 0x05, 0x06, 0x07, 0x08, 0x0B]):
+        lm_id = _read32(base + SMT_PAYLOAD)
+        if not _lmm_full(agent_id, lm_id):
+            _set_response(channel, SCMI_DENIED, [])
+        else:
+            if message_id == 0x04 or message_id == 0x07 or message_id == 0x0B:
+                lmm_states[lm_id] = LMM_STATE_ON
+            elif message_id == 0x06:
+                lmm_states[lm_id] = LMM_STATE_OFF
+            elif message_id == 0x08:
+                lmm_states[lm_id] = LMM_STATE_SUSPEND
+            elif message_id == 0x05:
+                lmm_states[lm_id] = LMM_STATE_ON
+                lmm_errors[lm_id] = 0
+            _set_response(channel, SCMI_SUCCESS, [])
+    elif message_id == 0x09:
+        lm_id = _read32(base + SMT_PAYLOAD)
+        flags = _read32(base + SMT_PAYLOAD + 4)
+        if not _lmm_notify(agent_id, lm_id):
+            _set_response(channel, SCMI_DENIED, [])
+        else:
+            lmm_notification_flags[(agent_id, lm_id)] = flags
+            _set_response(channel, SCMI_SUCCESS, [])
+    elif message_id == 0x0A:
+        lm_id = _read32(base + SMT_PAYLOAD)
+        if not _lmm_full(agent_id, lm_id):
+            _set_response(channel, SCMI_DENIED, [])
+        else:
+            _set_response(channel, SCMI_SUCCESS, [0, 0])
+    elif message_id == 0x0C:
+        lm_id = _read32(base + SMT_PAYLOAD)
+        cpu_id = _read32(base + SMT_PAYLOAD + 4)
+        flags = _read32(base + SMT_PAYLOAD + 8)
+        vector = (_read32(base + SMT_PAYLOAD + 12) |
+                  (_read32(base + SMT_PAYLOAD + 16) << 32))
+        if not _lmm_full(agent_id, lm_id):
+            _set_response(channel, SCMI_DENIED, [])
+        else:
+            lmm_reset_vectors[(lm_id, cpu_id)] = (flags, vector)
+            _set_response(channel, SCMI_SUCCESS, [])
+    elif message_id == 0x10:
+        _negotiate(channel, _read32(base + SMT_PAYLOAD), SCMI_NXP_LMM_VERSION)
     else:
         _set_response(channel, SCMI_NOT_SUPPORTED, [])
 
@@ -744,6 +844,8 @@ def _process_scmi(channel):
         _process_sensor(channel, message_id, agent_id)
     elif protocol_id == SCMI_PROTOCOL_PINCTRL:
         _process_pinctrl(channel, message_id, agent_id)
+    elif protocol_id == SCMI_PROTOCOL_NXP_LMM:
+        _process_lmm(channel, message_id, agent_id)
     elif protocol_id == SCMI_PROTOCOL_NXP_CPU:
         _process_nxp_cpu(channel, message_id, agent_id)
     else:
@@ -769,6 +871,10 @@ if request.IsInit:
     sensor_configs = {}
     sensor_notifications = {}
     sensor_trip_points = {}
+    lmm_states = {LM_M7: LMM_STATE_ON, LM_AP: LMM_STATE_ON}
+    lmm_errors = {LM_M7: 0, LM_AP: 0}
+    lmm_notification_flags = {}
+    lmm_reset_vectors = {}
     cpu_reset_vectors = {IMX952_M7_CPUID: 0}
 
     scmi_channel_count = 2 if size >= 0x1400 else 1
