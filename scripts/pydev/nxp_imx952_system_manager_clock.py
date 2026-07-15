@@ -12,10 +12,12 @@ _CLOCK_COUNT = 198
 _CLOCK_PERMISSION_ALL_BITS = 0xE0000000  # state | parent | rate
 _CLOCK_ATTR_RESTRICTED = 1 << 1
 
+# Use source-defined numeric agent IDs here because the lower protocol engine is
+# loaded later during the first PythonPeripheral IsInit execution.
 _CLOCK_ALLOWED = {
-    AGENT_M7: set([44, 51, 96, 141, 142]),
-    AGENT_AP_S: set([24, 25, 26, 27, 28, 29, 30, 31, 32]),
-    AGENT_AP_NS: set([
+    0: set([44, 51, 96, 141, 142]),
+    1: set([24, 25, 26, 27, 28, 29, 30, 31, 32]),
+    2: set([
         0, 14, 15, 16, 17, 18, 19, 35, 36, 37, 38, 39, 40, 46, 48, 49,
         50, 52, 57, 58, 60, 66, 67, 69, 77, 79, 80, 88, 102, 103, 105,
         110, 111, 112, 113, 120, 121, 124, 125, 126, 128, 129, 130, 131,
@@ -83,8 +85,8 @@ if request.IsWrite and request.Offset == 0x114:
             _clock_index += 1
 
         # Prevent lower layers from processing Clock requests. The original
-        # header is restored after the layered model has initialized/processed
-        # its own protocols, then this layer emits the authoritative response.
+        # header is restored after the layered model has processed its lower
+        # protocols, then this layer emits the authoritative Clock response.
         if ((_CLOCK_PRE_HEADER >> 10) & 0xFF) == _CLOCK_PROTOCOL:
             _write32(_clock_base + 0x18, (0xFF << 10) | (_CLOCK_PRE_HEADER & 0x3FF))
 
@@ -95,10 +97,10 @@ def _clock_agent_for_request():
     if _CLOCK_REQUEST_CHANNEL is None:
         return None
     if not _CLOCK_IS_AP:
-        return AGENT_M7
+        return 0
     if _CLOCK_REQUEST_CHANNEL == 0:
-        return AGENT_AP_S
-    return AGENT_AP_NS
+        return 1
+    return 2
 
 
 def _clock_allowed(agent_id, clock_id):
