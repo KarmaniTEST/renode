@@ -1,0 +1,168 @@
+// i.MX952 EVK full-equivalence development platform.
+//
+// This candidate keeps the stable engineering platform unchanged and replaces
+// only the System Manager implementation with the source-derived agent-aware
+// candidate while the remaining physical-equivalence work packages are added.
+
+a55Cluster: CPU.Cluster @ sysbus
+
+a55_0: CPU.ARMv8A @ a55Cluster
+    cpuType: "cortex-a55"
+    cpuId: 0x0
+    genericInterruptController: gic
+
+a55_1: CPU.ARMv8A @ a55Cluster
+    cpuType: "cortex-a55"
+    cpuId: 0x100
+    genericInterruptController: gic
+    init:
+        IsHalted true
+
+a55_2: CPU.ARMv8A @ a55Cluster
+    cpuType: "cortex-a55"
+    cpuId: 0x200
+    genericInterruptController: gic
+    init:
+        IsHalted true
+
+a55_3: CPU.ARMv8A @ a55Cluster
+    cpuType: "cortex-a55"
+    cpuId: 0x300
+    genericInterruptController: gic
+    init:
+        IsHalted true
+
+a55Timer0: Timers.ARM_GenericTimer @ a55_0
+    frequency: 24000000
+    defaultCounterFrequencyRegister: 24000000
+    EL3PhysicalTimerIRQ -> gic#0x0@29
+    EL1PhysicalTimerIRQ -> gic#0x0@30
+    EL1VirtualTimerIRQ -> gic#0x0@27
+    NonSecureEL2PhysicalTimerIRQ -> gic#0x0@26
+    NonSecureEL2VirtualTimerIRQ -> gic#0x0@28
+
+a55Timer1: Timers.ARM_GenericTimer @ a55_1
+    frequency: 24000000
+    defaultCounterFrequencyRegister: 24000000
+    EL3PhysicalTimerIRQ -> gic#0x100@29
+    EL1PhysicalTimerIRQ -> gic#0x100@30
+    EL1VirtualTimerIRQ -> gic#0x100@27
+    NonSecureEL2PhysicalTimerIRQ -> gic#0x100@26
+    NonSecureEL2VirtualTimerIRQ -> gic#0x100@28
+
+a55Timer2: Timers.ARM_GenericTimer @ a55_2
+    frequency: 24000000
+    defaultCounterFrequencyRegister: 24000000
+    EL3PhysicalTimerIRQ -> gic#0x200@29
+    EL1PhysicalTimerIRQ -> gic#0x200@30
+    EL1VirtualTimerIRQ -> gic#0x200@27
+    NonSecureEL2PhysicalTimerIRQ -> gic#0x200@26
+    NonSecureEL2VirtualTimerIRQ -> gic#0x200@28
+
+a55Timer3: Timers.ARM_GenericTimer @ a55_3
+    frequency: 24000000
+    defaultCounterFrequencyRegister: 24000000
+    EL3PhysicalTimerIRQ -> gic#0x300@29
+    EL1PhysicalTimerIRQ -> gic#0x300@30
+    EL1VirtualTimerIRQ -> gic#0x300@27
+    NonSecureEL2PhysicalTimerIRQ -> gic#0x300@26
+    NonSecureEL2VirtualTimerIRQ -> gic#0x300@28
+
+gic: IRQControllers.ARM_GenericInterruptController @ {
+    sysbus new Bus.BusMultiRegistration {
+        address: 0x48000000;
+        size: 0x10000;
+        region: "distributor"
+    };
+    sysbus new IRQControllers.ArmGicRedistributorRegistration {
+        attachedCPU: a55_0;
+        address: 0x48060000
+    };
+    sysbus new IRQControllers.ArmGicRedistributorRegistration {
+        attachedCPU: a55_1;
+        address: 0x48080000
+    };
+    sysbus new IRQControllers.ArmGicRedistributorRegistration {
+        attachedCPU: a55_2;
+        address: 0x480A0000
+    };
+    sysbus new IRQControllers.ArmGicRedistributorRegistration {
+        attachedCPU: a55_3;
+        address: 0x480C0000
+    }
+}
+    architectureVersion: .GICv3
+    supportsTwoSecurityStates: true
+
+ddr: Memory.MappedMemory @ sysbus 0x80000000
+    size: 0x80000000
+
+sram1: Memory.MappedMemory @ sysbus 0x204C0000
+    size: 0x00018000
+
+lpuart1: UART.NXP_LPUART @ sysbus 0x44380000
+    IRQ -> gic@51
+
+m7: CPU.CortexM @ sysbus
+    cpuType: "cortex-m7"
+    nvic: m7Nvic
+    numberOfMPURegions: 16
+
+m7Nvic: IRQControllers.NVIC @ sysbus new Bus.BusPointRegistration {
+    address: 0xE000E000;
+    cpu: m7
+}
+    systickFrequency: 800000000
+    IRQ -> m7@0
+
+m7Itcm: Memory.MappedMemory @ sysbus 0x00000000
+    size: 0x00040000
+
+m7Dtcm: Memory.MappedMemory @ sysbus 0x20000000
+    size: 0x00040000
+
+// A55 endpoint: local channel 0 = AP-S, local channel 1 = AP-NS.
+systemManager: Python.PythonPeripheral @ sysbus 0x445B0000
+    size: 0x00001400
+    initable: true
+    filename: "scripts/pydev/nxp_imx952_system_manager_full.py"
+
+// M7 endpoint: local channel 0 = M7 agent.
+m7SystemManager: Python.PythonPeripheral @ sysbus 0x44610000
+    size: 0x00001080
+    initable: true
+    filename: "scripts/pydev/nxp_imx952_system_manager_full.py"
+
+ele: Python.PythonPeripheral @ sysbus 0x47550000
+    size: 0x00010000
+    initable: true
+    filename: "scripts/pydev/nxp_imx952_ele.py"
+
+lpi2c7: Python.PythonPeripheral @ sysbus 0x422F0000
+    size: 0x00010000
+    initable: true
+    filename: "scripts/pydev/nxp_imx952_lpi2c7.py"
+
+mu7: Miscellaneous.IMXRT700_MessagingUnit @ {
+    sysbus new Bus.BusMultiRegistration {
+        address: 0x42050000;
+        size: 0x00010000;
+        region: "aInstance"
+    };
+    sysbus new Bus.BusMultiRegistration {
+        address: 0x42440000;
+        size: 0x00001000;
+        region: "bInstance"
+    }
+}
+    AInstanceIRQ -> gic@266
+    BInstanceIRQ -> m7Nvic@207
+
+usdhc1: SD.NXP_uSDHC @ sysbus 0x42C20000
+    IRQ -> gic@118
+
+usdhc2: SD.NXP_uSDHC @ sysbus 0x42C30000
+    IRQ -> gic@119
+
+usdhc3: SD.NXP_uSDHC @ sysbus 0x42C40000
+    IRQ -> gic@223
