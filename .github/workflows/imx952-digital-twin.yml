@@ -46,6 +46,9 @@ jobs:
           set +e
           docker run --rm \
             -v "$PWD:/workspace" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_ele.py:/opt/renode/scripts/pydev/nxp_imx952_ele.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_lpi2c7.py:/opt/renode/scripts/pydev/nxp_imx952_lpi2c7.py:ro" \
             -w /workspace \
             antmicro/renode:nightly-dotnet \
             renode-test tests/platforms/NXP_IMX952.robot \
