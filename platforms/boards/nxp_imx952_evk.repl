@@ -10,17 +10,17 @@
 // - LPUART1 at 0x44380000
 // - M7 ITCM/DTCM: 256 KiB each
 // - functional A55 MU2/SCMI System Manager transport
+// - functional M7 MU5/SCMI System Manager transport
+// - NXP SCMI CPU protocol controlling the modeled Cortex-M7
 // - functional early-boot ELE MU service
 // - functional LPI2C7 path with the EVK USB Type-C controller
 // - native USDHC1/2/3 storage controllers
 // - native dual-endpoint MU7 for A55 <-> M7 messaging
 //
 // Scope limitation:
-// This is initial boot-capable platform support, not a complete hardware-faithful
-// SoC model. Boot ROM, the complete ELE/System Manager firmware surface, GIC ITS,
-// NETC and populated boot-media images are future work. The M7-side MU5/SCMI
-// transport remains memory-backed until its dedicated System Manager endpoint is
-// modeled.
+// This is boot-capable platform support, not yet a complete cycle-accurate SoC
+// model. Boot ROM, the complete ELE/System Manager firmware surface, GIC ITS,
+// NETC and populated boot-media images remain future work.
 
 a55Cluster: CPU.Cluster @ sysbus
 
@@ -148,9 +148,16 @@ m7Dtcm: Memory.MappedMemory @ sysbus 0x20000000
     size: 0x00040000
 
 // A55 System Manager transport. The 0x1400 window contains MU2 followed by
-// the SCMI SRAM with two SMT channels.
+// two 0x80-byte SCMI SMT channels in the shared SRAM.
 systemManager: Python.PythonPeripheral @ sysbus 0x445B0000
     size: 0x00001400
+    initable: true
+    filename: "scripts/pydev/nxp_imx952_system_manager.py"
+
+// M7 System Manager transport. Public M7 firmware uses MU5 at 0x44610000 and
+// one 0x80-byte SCMI shared-memory channel at 0x44611000.
+m7SystemManager: Python.PythonPeripheral @ sysbus 0x44610000
+    size: 0x00001080
     initable: true
     filename: "scripts/pydev/nxp_imx952_system_manager.py"
 
@@ -193,11 +200,3 @@ usdhc2: SD.NXP_uSDHC @ sysbus 0x42C30000
 
 usdhc3: SD.NXP_uSDHC @ sysbus 0x42C40000
     IRQ -> gic@223
-
-// M7-side MU5 and SCMI shared-memory windows from the current Zephyr i.MX 952
-// M7 device tree.
-m7Mu5Stub: Memory.MappedMemory @ sysbus 0x44610000
-    size: 0x00001000
-
-m7ScmiShmem: Memory.MappedMemory @ sysbus 0x44611000
-    size: 0x00000080
