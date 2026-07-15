@@ -55,6 +55,7 @@ jobs:
           python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_bbm_contract.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.template.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.generated.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/profiles/imx952_evk_b0_foundation.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_physical_reference.template.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_boot_artifacts.template.json >/dev/null
@@ -64,6 +65,15 @@ jobs:
           python3 tools/imx952-digital-twin/equivalence/generate_clock_permissions.py \
             --output imx952-clock-permissions-generated.json
           python3 -m json.tool imx952-clock-permissions-generated.json >/dev/null
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          generated = json.loads(Path('imx952-clock-permissions-generated.json').read_text())
+          committed = json.loads(Path('tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.generated.json').read_text())
+          if generated != committed:
+              raise SystemExit('generated clock permission map differs from committed source-derived contract')
+          print('Clock permission contract matches pinned NXP source exactly.')
+          PY
 
       - name: Verify full physical gate fails closed without evidence
         shell: bash
@@ -92,6 +102,7 @@ jobs:
             -v "$PWD/scripts/pydev/nxp_imx952_system_manager_transport.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_transport.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_system_manager_bbm.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_bbm.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_system_manager_misc.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_misc.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_clock.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_clock.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_ele.py:/opt/renode/scripts/pydev/nxp_imx952_ele.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_lpi2c7.py:/opt/renode/scripts/pydev/nxp_imx952_lpi2c7.py:ro" \
             -w /workspace \
@@ -101,11 +112,12 @@ jobs:
               tests/platforms/NXP_IMX952_FULL_EQUIVALENCE.robot \
               tests/platforms/NXP_IMX952_BBM.robot \
               tests/platforms/NXP_IMX952_MISC.robot \
+              tests/platforms/NXP_IMX952_CLOCK_PERMISSIONS.robot \
             > imx952-qualification.log 2>&1
           status=$?
           echo "Qualification exit status: ${status}"
           echo "----- qualification log tail -----"
-          tail -n 400 imx952-qualification.log || true
+          tail -n 450 imx952-qualification.log || true
           echo "----- end qualification log tail -----"
           exit "${status}"
 
@@ -144,14 +156,17 @@ jobs:
             test -f tools/imx952-digital-twin/equivalence/contracts/imx952_bbm_contract.json
             test -f tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json
             test -f tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.template.json
+            test -f tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.generated.json
             test -f tools/imx952-digital-twin/equivalence/DEEP_GAP_ANALYSIS.md
           fi
           test -f platforms/boards/nxp_imx952_evk_full.repl
           test -f scripts/pydev/nxp_imx952_system_manager_transport.py
           test -f scripts/pydev/nxp_imx952_system_manager_bbm.py
           test -f scripts/pydev/nxp_imx952_system_manager_misc.py
+          test -f scripts/pydev/nxp_imx952_system_manager_clock.py
           test -f tests/platforms/NXP_IMX952_FULL_EQUIVALENCE.robot
           test -f tests/platforms/NXP_IMX952_BBM.robot
           test -f tests/platforms/NXP_IMX952_MISC.robot
+          test -f tests/platforms/NXP_IMX952_CLOCK_PERMISSIONS.robot
           test -f scripts/single-node/nxp_imx952_evk_full.resc
           test -f scripts/single-node/nxp_imx952_evk_heterogeneous_demo.resc
