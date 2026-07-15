@@ -1,23 +1,26 @@
 # Source-derived i.MX952 MU v2 + SCMI System Manager candidate.
 #
 # This model is intentionally separate from nxp_imx952_system_manager.py so the
-# stable engineering twin can remain regression-compatible while the stricter
+# stable engineering twin remains regression-compatible while the stricter
 # physical-equivalence contract is developed and qualified.
 #
-# Implemented protocol surface in this candidate:
+# Implemented protocol surface:
 # - Base          0x10
 # - Power         0x11, NXP SM version 3.1
 # - System Power  0x12, NXP SM version 2.1
 # - Performance   0x13, NXP SM version 4.0
 # - Clock         0x14, NXP SM version 3.0
+# - Sensor        0x15, NXP SM version 3.1
 # - Pinctrl       0x19
 # - NXP CPU       0x82 (M7 agent compatibility path)
 #
-# Agent mapping for the two A55-side SMT channels follows the generated
-# mx952evk System Manager configuration:
-#   local channel 0 -> AP-S  (global A2P channel 3, agent 1)
-#   local channel 1 -> AP-NS (global A2P channel 5, agent 2)
-# The one-channel M7 endpoint maps to agent 0.
+# Agent mapping follows the generated mx952evk System Manager configuration:
+#   local AP channel 0 -> AP-S  (global A2P channel 3, agent 1)
+#   local AP channel 1 -> AP-NS (global A2P channel 5, agent 2)
+#   one-channel M7 endpoint -> M7 (agent 0)
+#
+# The candidate only advertises a protocol to an agent when the implemented
+# contract has at least one source-derived resource available to that agent.
 
 from Antmicro.Renode.Core import EmulationManager
 from Antmicro.Renode.Peripherals.CPU import RegisterValue
@@ -47,6 +50,7 @@ SCMI_PROTOCOL_POWER = 0x11
 SCMI_PROTOCOL_SYSTEM = 0x12
 SCMI_PROTOCOL_PERF = 0x13
 SCMI_PROTOCOL_CLOCK = 0x14
+SCMI_PROTOCOL_SENSOR = 0x15
 SCMI_PROTOCOL_PINCTRL = 0x19
 SCMI_PROTOCOL_NXP_CPU = 0x82
 
@@ -55,6 +59,7 @@ SCMI_POWER_VERSION = 0x00030001
 SCMI_SYSTEM_VERSION = 0x00020001
 SCMI_PERF_VERSION = 0x00040000
 SCMI_CLOCK_VERSION = 0x00030000
+SCMI_SENSOR_VERSION = 0x00030001
 SCMI_PINCTRL_VERSION = 0x00010000
 SCMI_NXP_CPU_VERSION = 0x00010000
 
@@ -82,33 +87,18 @@ PD_NPU = 18
 PD_VPU = 19
 
 POWER_DOMAIN_NAMES = {
-    0: "ANA",
-    1: "AON",
-    2: "BBSM",
-    3: "CAMERA",
-    4: "CCMSRCGPC",
-    5: "A55C0",
-    6: "A55C1",
-    7: "A55C2",
-    8: "A55C3",
-    9: "A55P",
-    10: "DDR",
-    11: "DISPLAY",
-    12: "GPU",
-    13: "HSIO_TOP",
-    14: "HSIO_WAON",
-    15: "M7",
-    16: "NETC",
-    17: "NOC",
-    18: "NPU",
-    19: "VPU",
-    20: "WAKEUP",
+    0: "ANA", 1: "AON", 2: "BBSM", 3: "CAMERA", 4: "CCMSRCGPC",
+    5: "A55C0", 6: "A55C1", 7: "A55C2", 8: "A55C3", 9: "A55P",
+    10: "DDR", 11: "DISPLAY", 12: "GPU", 13: "HSIO_TOP",
+    14: "HSIO_WAON", 15: "M7", 16: "NETC", 17: "NOC", 18: "NPU",
+    19: "VPU", 20: "WAKEUP",
 }
 
 POWER_PERMISSIONS = {
     AGENT_M7: set([PD_M7]),
     AGENT_AP_S: set([PD_A55P]),
-    AGENT_AP_NS: set([PD_CAMERA, PD_DISPLAY, PD_GPU, PD_HSIO_TOP, PD_NETC, PD_NPU, PD_VPU]),
+    AGENT_AP_NS: set([PD_CAMERA, PD_DISPLAY, PD_GPU, PD_HSIO_TOP,
+                      PD_NETC, PD_NPU, PD_VPU]),
 }
 
 # i.MX952 performance domains from devices/MIMX952/sm/dev_sm_perf.h.
@@ -126,29 +116,21 @@ PERF_CAM = 10
 PERF_DISP = 11
 
 PERF_DOMAIN_NAMES = {
-    PERF_M33: "M33",
-    PERF_WAKEUP: "WAKEUP",
-    PERF_M7: "M7",
-    PERF_DRAM: "DRAM",
-    PERF_HSIO: "HSIO",
-    PERF_NPU: "NPU",
-    PERF_NOC: "NOC",
-    PERF_A55: "A55",
-    PERF_GPU: "GPU",
-    PERF_VPU: "VPU",
-    PERF_CAM: "CAM",
-    PERF_DISP: "DISP",
+    PERF_M33: "M33", PERF_WAKEUP: "WAKEUP", PERF_M7: "M7",
+    PERF_DRAM: "DRAM", PERF_HSIO: "HSIO", PERF_NPU: "NPU",
+    PERF_NOC: "NOC", PERF_A55: "A55", PERF_GPU: "GPU", PERF_VPU: "VPU",
+    PERF_CAM: "CAM", PERF_DISP: "DISP",
 }
 
 PERF_PERMISSIONS = {
     AGENT_M7: set([PERF_M7]),
     AGENT_AP_S: set([PERF_A55, PERF_DRAM]),
-    AGENT_AP_NS: set([PERF_A55, PERF_DRAM, PERF_GPU, PERF_NPU, PERF_VPU, PERF_CAM, PERF_DISP]),
+    AGENT_AP_NS: set([PERF_A55, PERF_DRAM, PERF_GPU, PERF_NPU,
+                      PERF_VPU, PERF_CAM, PERF_DISP]),
 }
 
-# PRK, LOW, NOM, ODV. Exact frequency values are model calibration inputs;
-# these defaults preserve the already-qualified A55/M7 operating points while
-# exposing the source-derived four-level state machine.
+# PRK, LOW, NOM, ODV. These frequencies are calibration inputs rather than a
+# claim of silicon timing equivalence.
 PERF_LEVELS = {
     PERF_A55: [400000000, 800000000, 1200000000, 1700000000],
     PERF_M7: [200000000, 400000000, 600000000, 800000000],
@@ -160,12 +142,31 @@ PERF_LEVELS = {
     PERF_DISP: [200000000, 400000000, 600000000, 800000000],
 }
 
+# i.MX952 device sensors from devices/MIMX952/sm/dev_sm_sensor.h.
+SENSOR_TEMP_ANA = 0
+SENSOR_TEMP_A55 = 1
+SENSOR_NAMES = {
+    SENSOR_TEMP_ANA: "TEMP_ANA",
+    SENSOR_TEMP_A55: "TEMP_A55",
+}
+# The generated mx952evk policy grants M7 full access to ANA and AP-NS full
+# access to A55. AP-S has no device-sensor permission. AP-NS has SET-only ANA
+# permission in the source policy, which is intentionally not promoted to read
+# access in this candidate.
+SENSOR_READ_PERMISSIONS = {
+    AGENT_M7: set([SENSOR_TEMP_ANA]),
+    AGENT_AP_S: set(),
+    AGENT_AP_NS: set([SENSOR_TEMP_A55]),
+}
+SENSOR_DEFAULT_VALUES = {
+    SENSOR_TEMP_ANA: 45000,
+    SENSOR_TEMP_A55: 50000,
+}
+
 IMX952_M7_CPUID = 1
 M7_SCMI_IRQ = 205
 CPU_RUN_MODE_START = 0
-CPU_RUN_MODE_HOLD = 1
 CPU_RUN_MODE_STOP = 2
-CPU_RUN_MODE_SLEEP = 3
 CPU_VEC_FLAGS_START = 1 << 30
 
 SYS_STATE_SHUTDOWN = 0x00000000
@@ -240,11 +241,14 @@ def _agent_for_channel(channel):
 
 
 def _protocols_for_agent(agent_id):
+    protocols = [SCMI_PROTOCOL_POWER, SCMI_PROTOCOL_SYSTEM, SCMI_PROTOCOL_PERF,
+                 SCMI_PROTOCOL_CLOCK]
+    if SENSOR_READ_PERMISSIONS.get(agent_id, set()):
+        protocols.append(SCMI_PROTOCOL_SENSOR)
+    protocols.append(SCMI_PROTOCOL_PINCTRL)
     if agent_id == AGENT_M7:
-        return [SCMI_PROTOCOL_POWER, SCMI_PROTOCOL_SYSTEM, SCMI_PROTOCOL_PERF,
-                SCMI_PROTOCOL_CLOCK, SCMI_PROTOCOL_PINCTRL, SCMI_PROTOCOL_NXP_CPU]
-    return [SCMI_PROTOCOL_POWER, SCMI_PROTOCOL_SYSTEM, SCMI_PROTOCOL_PERF,
-            SCMI_PROTOCOL_CLOCK, SCMI_PROTOCOL_PINCTRL]
+        protocols.append(SCMI_PROTOCOL_NXP_CPU)
+    return protocols
 
 
 def _update_m7_scmi_irq():
@@ -275,7 +279,8 @@ def _apply_m7_reset_vector(vector):
     return True
 
 
-def _set_response(channel, status, words, text_payload=None, text_offset=4, text_size=16):
+def _set_response(channel, status, words, text_payload=None, text_offset=4,
+                  text_size=16):
     base = SCMI_SRAM + channel * SCMI_CHANNEL_SIZE
     _write32(base + SMT_PAYLOAD, status)
     payload_length = 4
@@ -298,13 +303,19 @@ def _message_attributes(channel, message_id, supported):
         _set_response(channel, SCMI_NOT_FOUND, [])
 
 
+def _negotiate(channel, requested, maximum):
+    if requested <= maximum:
+        _set_response(channel, SCMI_SUCCESS, [])
+    else:
+        _set_response(channel, SCMI_NOT_SUPPORTED, [])
+
+
 def _process_base(channel, message_id, agent_id):
     base = SCMI_SRAM + channel * SCMI_CHANNEL_SIZE
     protocols = _protocols_for_agent(agent_id)
     if message_id == 0x00:
         _set_response(channel, SCMI_SUCCESS, [SCMI_BASE_VERSION])
     elif message_id == 0x01:
-        # Number of agents in bits[15:8], number of protocols in bits[7:0].
         _set_response(channel, SCMI_SUCCESS, [(3 << 8) | len(protocols)])
     elif message_id == 0x02:
         requested = _read32(base + SMT_PAYLOAD)
@@ -334,13 +345,10 @@ def _process_base(channel, message_id, agent_id):
         if requested_agent not in AGENT_NAMES:
             _set_response(channel, SCMI_NOT_FOUND, [])
         else:
-            _set_response(channel, SCMI_SUCCESS, [requested_agent], AGENT_NAMES[requested_agent], 8, 16)
+            _set_response(channel, SCMI_SUCCESS, [requested_agent],
+                          AGENT_NAMES[requested_agent], 8, 16)
     else:
         _set_response(channel, SCMI_NOT_SUPPORTED, [])
-
-
-def _power_allowed(agent_id, domain_id):
-    return domain_id in POWER_PERMISSIONS.get(agent_id, set())
 
 
 def _process_power(channel, message_id, agent_id):
@@ -351,35 +359,33 @@ def _process_power(channel, message_id, agent_id):
     elif message_id == 0x01:
         _set_response(channel, SCMI_SUCCESS, [len(allowed), 0, 0, 0])
     elif message_id == 0x02:
-        requested = _read32(base + SMT_PAYLOAD)
-        _message_attributes(channel, requested, set([0, 1, 2, 3, 4, 5, 0x10]))
+        _message_attributes(channel, _read32(base + SMT_PAYLOAD),
+                            set([0, 1, 2, 3, 4, 5, 0x10]))
     elif message_id == 0x03:
         domain_id = _read32(base + SMT_PAYLOAD)
-        if not _power_allowed(agent_id, domain_id):
+        if domain_id not in allowed:
             _set_response(channel, SCMI_DENIED, [])
         else:
-            name = POWER_DOMAIN_NAMES.get(domain_id, "PD-%d" % domain_id)
-            _set_response(channel, SCMI_SUCCESS, [0], name, 8, 16)
+            _set_response(channel, SCMI_SUCCESS, [0],
+                          POWER_DOMAIN_NAMES.get(domain_id, "PD-%d" % domain_id),
+                          8, 16)
     elif message_id == 0x04:
         domain_id = _read32(base + SMT_PAYLOAD + 4)
         pstate = _read32(base + SMT_PAYLOAD + 8)
-        if not _power_allowed(agent_id, domain_id):
+        if domain_id not in allowed:
             _set_response(channel, SCMI_DENIED, [])
         else:
             power_domain_states[domain_id] = pstate
             _set_response(channel, SCMI_SUCCESS, [])
     elif message_id == 0x05:
         domain_id = _read32(base + SMT_PAYLOAD)
-        if not _power_allowed(agent_id, domain_id):
+        if domain_id not in allowed:
             _set_response(channel, SCMI_DENIED, [])
         else:
-            _set_response(channel, SCMI_SUCCESS, [power_domain_states.get(domain_id, 0)])
+            _set_response(channel, SCMI_SUCCESS,
+                          [power_domain_states.get(domain_id, 0)])
     elif message_id == 0x10:
-        requested_version = _read32(base + SMT_PAYLOAD)
-        if requested_version <= SCMI_POWER_VERSION:
-            _set_response(channel, SCMI_SUCCESS, [])
-        else:
-            _set_response(channel, SCMI_NOT_SUPPORTED, [])
+        _negotiate(channel, _read32(base + SMT_PAYLOAD), SCMI_POWER_VERSION)
     else:
         _set_response(channel, SCMI_NOT_SUPPORTED, [])
 
@@ -391,34 +397,26 @@ def _process_system(channel, message_id, agent_id):
     elif message_id == 0x01:
         _set_response(channel, SCMI_SUCCESS, [0])
     elif message_id == 0x02:
-        requested = _read32(base + SMT_PAYLOAD)
-        _message_attributes(channel, requested, set([0, 1, 2, 3, 5, 0x10]))
+        _message_attributes(channel, _read32(base + SMT_PAYLOAD),
+                            set([0, 1, 2, 3, 5, 0x10]))
     elif message_id == 0x03:
         flags = _read32(base + SMT_PAYLOAD)
         state = _read32(base + SMT_PAYLOAD + 4)
-        if state not in set([SYS_STATE_SHUTDOWN, SYS_STATE_COLD_RESET, SYS_STATE_WARM_RESET,
-                             SYS_STATE_POWER_UP, SYS_STATE_SUSPEND]):
+        if state not in set([SYS_STATE_SHUTDOWN, SYS_STATE_COLD_RESET,
+                             SYS_STATE_WARM_RESET, SYS_STATE_POWER_UP,
+                             SYS_STATE_SUSPEND]):
             _set_response(channel, SCMI_INVALID_PARAMETERS, [])
         else:
             system_power_state[agent_id] = state
             system_power_flags[agent_id] = flags
             _set_response(channel, SCMI_SUCCESS, [])
     elif message_id == 0x05:
-        enable = _read32(base + SMT_PAYLOAD) & 1
-        system_notifications[agent_id] = enable != 0
+        system_notifications[agent_id] = (_read32(base + SMT_PAYLOAD) & 1) != 0
         _set_response(channel, SCMI_SUCCESS, [])
     elif message_id == 0x10:
-        requested_version = _read32(base + SMT_PAYLOAD)
-        if requested_version <= SCMI_SYSTEM_VERSION:
-            _set_response(channel, SCMI_SUCCESS, [])
-        else:
-            _set_response(channel, SCMI_NOT_SUPPORTED, [])
+        _negotiate(channel, _read32(base + SMT_PAYLOAD), SCMI_SYSTEM_VERSION)
     else:
         _set_response(channel, SCMI_NOT_SUPPORTED, [])
-
-
-def _perf_allowed(agent_id, domain_id):
-    return domain_id in PERF_PERMISSIONS.get(agent_id, set())
 
 
 def _perf_levels(domain_id):
@@ -433,21 +431,22 @@ def _process_perf(channel, message_id, agent_id):
     elif message_id == 0x01:
         _set_response(channel, SCMI_SUCCESS, [len(allowed), 0, 0, 0])
     elif message_id == 0x02:
-        requested = _read32(base + SMT_PAYLOAD)
-        _message_attributes(channel, requested, set([0, 1, 2, 3, 4, 5, 6, 7, 8, 0x10]))
+        _message_attributes(channel, _read32(base + SMT_PAYLOAD),
+                            set([0, 1, 2, 3, 4, 5, 6, 7, 8, 0x10]))
     elif message_id == 0x03:
         domain_id = _read32(base + SMT_PAYLOAD)
-        if not _perf_allowed(agent_id, domain_id):
+        if domain_id not in allowed:
             _set_response(channel, SCMI_DENIED, [])
         else:
             levels = _perf_levels(domain_id)
             sustained = levels[2] if len(levels) > 2 else levels[-1]
-            name = PERF_DOMAIN_NAMES.get(domain_id, "PERF-%d" % domain_id)
-            _set_response(channel, SCMI_SUCCESS, [0, 0, sustained, 2], name, 20, 16)
+            _set_response(channel, SCMI_SUCCESS, [0, 0, sustained, 2],
+                          PERF_DOMAIN_NAMES.get(domain_id, "PERF-%d" % domain_id),
+                          20, 16)
     elif message_id == 0x04:
         domain_id = _read32(base + SMT_PAYLOAD)
         skip_index = _read32(base + SMT_PAYLOAD + 4)
-        if not _perf_allowed(agent_id, domain_id):
+        if domain_id not in allowed:
             _set_response(channel, SCMI_DENIED, [])
         else:
             levels = _perf_levels(domain_id)[skip_index:]
@@ -459,24 +458,23 @@ def _process_perf(channel, message_id, agent_id):
         domain_id = _read32(base + SMT_PAYLOAD)
         range_max = _read32(base + SMT_PAYLOAD + 4)
         range_min = _read32(base + SMT_PAYLOAD + 8)
-        if not _perf_allowed(agent_id, domain_id):
+        if domain_id not in allowed:
             _set_response(channel, SCMI_DENIED, [])
         else:
             perf_limits[domain_id] = (range_min, range_max)
             _set_response(channel, SCMI_SUCCESS, [])
     elif message_id == 0x06:
         domain_id = _read32(base + SMT_PAYLOAD)
-        if not _perf_allowed(agent_id, domain_id):
+        if domain_id not in allowed:
             _set_response(channel, SCMI_DENIED, [])
         else:
             levels = _perf_levels(domain_id)
-            default_limits = (0, len(levels) - 1)
-            minimum, maximum = perf_limits.get(domain_id, default_limits)
+            minimum, maximum = perf_limits.get(domain_id, (0, len(levels) - 1))
             _set_response(channel, SCMI_SUCCESS, [maximum, minimum])
     elif message_id == 0x07:
         domain_id = _read32(base + SMT_PAYLOAD)
         level = _read32(base + SMT_PAYLOAD + 4)
-        if not _perf_allowed(agent_id, domain_id):
+        if domain_id not in allowed:
             _set_response(channel, SCMI_DENIED, [])
         elif level > 3:
             _set_response(channel, SCMI_INVALID_PARAMETERS, [])
@@ -485,16 +483,13 @@ def _process_perf(channel, message_id, agent_id):
             _set_response(channel, SCMI_SUCCESS, [])
     elif message_id == 0x08:
         domain_id = _read32(base + SMT_PAYLOAD)
-        if not _perf_allowed(agent_id, domain_id):
+        if domain_id not in allowed:
             _set_response(channel, SCMI_DENIED, [])
         else:
-            _set_response(channel, SCMI_SUCCESS, [perf_current_levels.get(domain_id, 2)])
+            _set_response(channel, SCMI_SUCCESS,
+                          [perf_current_levels.get(domain_id, 2)])
     elif message_id == 0x10:
-        requested_version = _read32(base + SMT_PAYLOAD)
-        if requested_version <= SCMI_PERF_VERSION:
-            _set_response(channel, SCMI_SUCCESS, [])
-        else:
-            _set_response(channel, SCMI_NOT_SUPPORTED, [])
+        _negotiate(channel, _read32(base + SMT_PAYLOAD), SCMI_PERF_VERSION)
     else:
         _set_response(channel, SCMI_NOT_SUPPORTED, [])
 
@@ -520,18 +515,21 @@ def _process_clock(channel, message_id, agent_id):
     elif message_id == 0x01:
         _set_response(channel, SCMI_SUCCESS, [198])
     elif message_id == 0x02:
-        requested = _read32(base + SMT_PAYLOAD)
-        _message_attributes(channel, requested, set([0, 1, 2, 3, 4, 5, 6, 7, 0xB, 0xC, 0xD, 0xE, 0x10]))
+        _message_attributes(channel, _read32(base + SMT_PAYLOAD),
+                            set([0, 1, 2, 3, 4, 5, 6, 7, 0xB, 0xC, 0xD,
+                                 0xE, 0x10]))
     elif message_id == 0x03:
         clock_id = _read32(base + SMT_PAYLOAD)
         if clock_id >= 198:
             _set_response(channel, SCMI_NOT_FOUND, [])
         else:
-            _set_response(channel, SCMI_SUCCESS, [0], "imx952-clk-%d" % clock_id, 8, 16)
+            _set_response(channel, SCMI_SUCCESS, [0],
+                          "imx952-clk-%d" % clock_id, 8, 16)
     elif message_id == 0x04:
         clock_id = _read32(base + SMT_PAYLOAD)
         rate = clock_rates.get(clock_id, _clock_default_rate(clock_id))
-        _set_response(channel, SCMI_SUCCESS, [1, rate & 0xFFFFFFFF, (rate >> 32) & 0xFFFFFFFF, 0, 0])
+        _set_response(channel, SCMI_SUCCESS,
+                      [1, rate & 0xFFFFFFFF, (rate >> 32) & 0xFFFFFFFF, 0, 0])
     elif message_id == 0x05:
         clock_id = _read32(base + SMT_PAYLOAD + 4)
         rate_lsb = _read32(base + SMT_PAYLOAD + 8)
@@ -541,31 +539,108 @@ def _process_clock(channel, message_id, agent_id):
     elif message_id == 0x06:
         clock_id = _read32(base + SMT_PAYLOAD)
         rate = clock_rates.get(clock_id, _clock_default_rate(clock_id))
-        _set_response(channel, SCMI_SUCCESS, [rate & 0xFFFFFFFF, (rate >> 32) & 0xFFFFFFFF])
+        _set_response(channel, SCMI_SUCCESS,
+                      [rate & 0xFFFFFFFF, (rate >> 32) & 0xFFFFFFFF])
     elif message_id == 0x07:
         clock_id = _read32(base + SMT_PAYLOAD)
-        attributes = _read32(base + SMT_PAYLOAD + 4)
-        clock_enabled[clock_id] = (attributes & 1) != 0
+        clock_enabled[clock_id] = (_read32(base + SMT_PAYLOAD + 4) & 1) != 0
         _set_response(channel, SCMI_SUCCESS, [])
     elif message_id == 0x0B:
         clock_id = _read32(base + SMT_PAYLOAD)
-        _set_response(channel, SCMI_SUCCESS, [1 if clock_enabled.get(clock_id, True) else 0])
+        _set_response(channel, SCMI_SUCCESS,
+                      [1 if clock_enabled.get(clock_id, True) else 0])
     elif message_id == 0x0C:
         _set_response(channel, SCMI_SUCCESS, [0])
     elif message_id == 0x0D:
         clock_id = _read32(base + SMT_PAYLOAD)
-        parent_id = _read32(base + SMT_PAYLOAD + 4)
-        clock_parents[clock_id] = parent_id
+        clock_parents[clock_id] = _read32(base + SMT_PAYLOAD + 4)
         _set_response(channel, SCMI_SUCCESS, [])
     elif message_id == 0x0E:
         clock_id = _read32(base + SMT_PAYLOAD)
         _set_response(channel, SCMI_SUCCESS, [clock_parents.get(clock_id, 0)])
     elif message_id == 0x10:
-        requested_version = _read32(base + SMT_PAYLOAD)
-        if requested_version <= SCMI_CLOCK_VERSION:
-            _set_response(channel, SCMI_SUCCESS, [])
+        _negotiate(channel, _read32(base + SMT_PAYLOAD), SCMI_CLOCK_VERSION)
+    else:
+        _set_response(channel, SCMI_NOT_SUPPORTED, [])
+
+
+def _sensor_allowed(agent_id, sensor_id):
+    return sensor_id in SENSOR_READ_PERMISSIONS.get(agent_id, set())
+
+
+def _process_sensor(channel, message_id, agent_id):
+    base = SCMI_SRAM + channel * SCMI_CHANNEL_SIZE
+    allowed = sorted(list(SENSOR_READ_PERMISSIONS.get(agent_id, set())))
+    if not allowed:
+        _set_response(channel, SCMI_DENIED, [])
+        return
+    if message_id == 0x00:
+        _set_response(channel, SCMI_SUCCESS, [SCMI_SENSOR_VERSION])
+    elif message_id == 0x01:
+        # max pending asynchronous reads = 0; low 16 bits = number of sensors.
+        _set_response(channel, SCMI_SUCCESS, [len(allowed), 0, 0, 0])
+    elif message_id == 0x02:
+        _message_attributes(channel, _read32(base + SMT_PAYLOAD),
+                            set([0, 1, 2, 3, 4, 5, 6, 9, 0xA, 0x10]))
+    elif message_id == 0x03:
+        desc_index = _read32(base + SMT_PAYLOAD)
+        if desc_index >= len(allowed):
+            _set_response(channel, SCMI_NOT_FOUND, [])
         else:
-            _set_response(channel, SCMI_NOT_SUPPORTED, [])
+            sensor_id = allowed[desc_index]
+            # One descriptor, zero remaining. Descriptor layout after flags:
+            # sensorId, attributesLow, attributesHigh, 16-byte name.
+            _write32(base + SMT_PAYLOAD, SCMI_SUCCESS)
+            _write32(base + SMT_PAYLOAD + 4, 1)
+            _write32(base + SMT_PAYLOAD + 8, sensor_id)
+            _write32(base + SMT_PAYLOAD + 12, 0)
+            # Sensor type 2 is temperature in the SCMI sensor type namespace.
+            _write32(base + SMT_PAYLOAD + 16, 2)
+            _write_ascii(base + SMT_PAYLOAD + 20, SENSOR_NAMES[sensor_id], 16)
+            _write32(base + SMT_LENGTH, 44)
+            _write32(base + SMT_CHANNEL_STATUS, SMT_CHANNEL_FREE)
+    elif message_id == 0x04:
+        sensor_id = _read32(base + SMT_PAYLOAD)
+        if not _sensor_allowed(agent_id, sensor_id):
+            _set_response(channel, SCMI_DENIED, [])
+        else:
+            sensor_notifications[(agent_id, sensor_id)] = \
+                (_read32(base + SMT_PAYLOAD + 4) & 1) != 0
+            _set_response(channel, SCMI_SUCCESS, [])
+    elif message_id == 0x05:
+        sensor_id = _read32(base + SMT_PAYLOAD)
+        if not _sensor_allowed(agent_id, sensor_id):
+            _set_response(channel, SCMI_DENIED, [])
+        else:
+            trip_id = (_read32(base + SMT_PAYLOAD + 4) >> 4) & 0xFF
+            trip_value = _read32(base + SMT_PAYLOAD + 8)
+            sensor_trip_points[(agent_id, sensor_id, trip_id)] = trip_value
+            _set_response(channel, SCMI_SUCCESS, [])
+    elif message_id == 0x06:
+        sensor_id = _read32(base + SMT_PAYLOAD)
+        if not _sensor_allowed(agent_id, sensor_id):
+            _set_response(channel, SCMI_DENIED, [])
+        else:
+            value = sensor_values.get(sensor_id, SENSOR_DEFAULT_VALUES[sensor_id])
+            _set_response(channel, SCMI_SUCCESS,
+                          [value & 0xFFFFFFFF, 0, 0, 0])
+    elif message_id == 0x09:
+        sensor_id = _read32(base + SMT_PAYLOAD)
+        if not _sensor_allowed(agent_id, sensor_id):
+            _set_response(channel, SCMI_DENIED, [])
+        else:
+            _set_response(channel, SCMI_SUCCESS,
+                          [sensor_configs.get((agent_id, sensor_id), 1)])
+    elif message_id == 0x0A:
+        sensor_id = _read32(base + SMT_PAYLOAD)
+        config = _read32(base + SMT_PAYLOAD + 4)
+        if not _sensor_allowed(agent_id, sensor_id):
+            _set_response(channel, SCMI_DENIED, [])
+        else:
+            sensor_configs[(agent_id, sensor_id)] = config
+            _set_response(channel, SCMI_SUCCESS, [])
+    elif message_id == 0x10:
+        _negotiate(channel, _read32(base + SMT_PAYLOAD), SCMI_SENSOR_VERSION)
     else:
         _set_response(channel, SCMI_NOT_SUPPORTED, [])
 
@@ -577,8 +652,8 @@ def _process_pinctrl(channel, message_id, agent_id):
     elif message_id == 0x01:
         _set_response(channel, SCMI_SUCCESS, [0])
     elif message_id == 0x02:
-        requested = _read32(base + SMT_PAYLOAD)
-        _message_attributes(channel, requested, set([0, 1, 2, 6]))
+        _message_attributes(channel, _read32(base + SMT_PAYLOAD),
+                            set([0, 1, 2, 6]))
     elif message_id == 0x06:
         _set_response(channel, SCMI_SUCCESS, [])
     else:
@@ -596,8 +671,8 @@ def _process_nxp_cpu(channel, message_id, agent_id):
     elif message_id == 0x01:
         _set_response(channel, SCMI_SUCCESS, [2])
     elif message_id == 0x02:
-        requested = _read32(base + SMT_PAYLOAD)
-        _message_attributes(channel, requested, set([0, 1, 2, 3, 4, 5, 6, 0x0C]))
+        _message_attributes(channel, _read32(base + SMT_PAYLOAD),
+                            set([0, 1, 2, 3, 4, 5, 6, 0x0C]))
     elif message_id == 0x03:
         cpuid = _read32(base + SMT_PAYLOAD)
         if cpuid != IMX952_M7_CPUID:
@@ -625,9 +700,8 @@ def _process_nxp_cpu(channel, message_id, agent_id):
     elif message_id == 0x06:
         cpuid = _read32(base + SMT_PAYLOAD)
         flags = _read32(base + SMT_PAYLOAD + 4)
-        vector_low = _read32(base + SMT_PAYLOAD + 8)
-        vector_high = _read32(base + SMT_PAYLOAD + 12)
-        vector = vector_low | (vector_high << 32)
+        vector = (_read32(base + SMT_PAYLOAD + 8) |
+                  (_read32(base + SMT_PAYLOAD + 12) << 32))
         if cpuid != IMX952_M7_CPUID or m7 is None:
             _set_response(channel, SCMI_INVALID_PARAMETERS, [])
         else:
@@ -644,7 +718,8 @@ def _process_nxp_cpu(channel, message_id, agent_id):
             vector = cpu_reset_vectors.get(cpuid, 0)
             run_mode = CPU_RUN_MODE_STOP if m7.IsHalted else CPU_RUN_MODE_START
             _set_response(channel, SCMI_SUCCESS,
-                          [run_mode, 0, vector & 0xFFFFFFFF, (vector >> 32) & 0xFFFFFFFF])
+                          [run_mode, 0, vector & 0xFFFFFFFF,
+                           (vector >> 32) & 0xFFFFFFFF])
     else:
         _set_response(channel, SCMI_NOT_SUPPORTED, [])
 
@@ -665,6 +740,8 @@ def _process_scmi(channel):
         _process_perf(channel, message_id, agent_id)
     elif protocol_id == SCMI_PROTOCOL_CLOCK:
         _process_clock(channel, message_id, agent_id)
+    elif protocol_id == SCMI_PROTOCOL_SENSOR:
+        _process_sensor(channel, message_id, agent_id)
     elif protocol_id == SCMI_PROTOCOL_PINCTRL:
         _process_pinctrl(channel, message_id, agent_id)
     elif protocol_id == SCMI_PROTOCOL_NXP_CPU:
@@ -688,6 +765,10 @@ if request.IsInit:
     system_power_state = {}
     system_power_flags = {}
     system_notifications = {}
+    sensor_values = {}
+    sensor_configs = {}
+    sensor_notifications = {}
+    sensor_trip_points = {}
     cpu_reset_vectors = {IMX952_M7_CPUID: 0}
 
     scmi_channel_count = 2 if size >= 0x1400 else 1
