@@ -2,7 +2,7 @@
 //
 // This candidate keeps the stable engineering platform unchanged and uses the
 // source-derived agent-aware System Manager model, exact SMT/P2A topology and
-// permission-aware vendor and clock policy layers.
+// permission-aware vendor, Clock and Pinctrl policy layers.
 
 a55Cluster: CPU.Cluster @ sysbus
 
@@ -126,14 +126,14 @@ m7Dtcm: Memory.MappedMemory @ sysbus 0x20000000
 systemManager: Python.PythonPeripheral @ sysbus 0x445B0000
     size: 0x00001400
     initable: true
-    filename: "scripts/pydev/nxp_imx952_system_manager_clock.py"
+    filename: "scripts/pydev/nxp_imx952_system_manager_pinctrl.py"
 
 // M7 endpoint mirrors global SMT channels 0/1/2 as local 0/1/2:
 // M7 A2P, M7 P2A notify, M7 P2A priority.
 m7SystemManager: Python.PythonPeripheral @ sysbus 0x44610000
     size: 0x00001180
     initable: true
-    filename: "scripts/pydev/nxp_imx952_system_manager_clock.py"
+    filename: "scripts/pydev/nxp_imx952_system_manager_pinctrl.py"
 
 ele: Python.PythonPeripheral @ sysbus 0x47550000
     size: 0x00010000
