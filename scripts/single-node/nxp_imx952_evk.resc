@@ -4,71 +4,68 @@ $name?="nxp-imx952-evk"
 mach create $name
 machine LoadPlatformDescription @platforms/boards/nxp_imx952_evk.repl
 
-# The Cortex-M7 is held in reset until released by the i.MX9 SiP auxiliary-core
-# service, matching the normal heterogeneous boot flow.
+# Hold the Cortex-M7 in reset until released through the same NXP SiP service
+# used by i.MX9 U-Boot's bootaux command.
 m7 IsHalted true
 
-# i.MX 9 auxiliary-core control is exposed to A-class software through the
-# NXP SiP service at SMC function ID 0xC2000005. U-Boot's bootaux command
-# uses x1 as the operation, x2 as the reset-vector address and x3 as core ID.
-#
-# Supported operations:
-#   0 - MCU_START
-#   1 - MCU_STARTED
-#   2 - MCU_STOP
-#   3 - MCU_RESET_ADDR_SET (accepted; START uses x2 directly)
-#   4 - MCU_PREP
-#   5 - MCU_PREPED
-#
-# Core ID 1 is Cortex-M7 on i.MX 952.
 a55Cluster.a55_0 PSCIEmulationMethod SMC
 a55Cluster.a55_0 AddCustomPSCIHandler 0xC2000005 """
-from Antmicro.Renode.Core import EmulationManager
 from Antmicro.Renode.Peripherals.CPU import RegisterValue
 
-op = self.GetRegisterUlong(1)
+machine = self.GetMachine()
+operation = self.GetRegisterUlong(1)
 address = self.GetRegisterUlong(2)
 core_id = self.GetRegisterUlong(3)
-result_code = 0
 
-# ARMv8 custom PSCI handlers do not expose a direct Machine property on every
-# Renode version. Resolve the i.MX 952 machine and M7 by name through the current
-# emulation, matching the lookup used by the SCMI System Manager model.
-machine = None
-m7 = None
-emulation = EmulationManager.Instance.CurrentEmulation
-for candidate in emulation.Machines:
-    lookup = emulation.TryGetEmulationElementByName("m7", candidate)
-    if lookup[0]:
-        machine = candidate
-        m7 = lookup[1]
-        break
-
-if core_id != 1 or m7 is None or machine is None:
-    result_code = 0xFFFFFFFFFFFFFFFF
-elif op == 0: # MCU_START
-    sp = machine.SystemBus.ReadDoubleWord(address)
-    pc = machine.SystemBus.ReadDoubleWord(address + 4)
-    if pc == 0:
-        result_code = 0xFFFFFFFFFFFFFFFF
-    else:
-        m7.SP = RegisterValue.Create(sp, 32)
-        m7.PC = RegisterValue.Create(pc & 0xFFFFFFFE, 32)
-        m7.IsHalted = False
-elif op == 1: # MCU_STARTED
-    result_code = 0 if m7.IsHalted else 1
-elif op == 2: # MCU_STOP
-    m7.IsHalted = True
-elif op == 3: # MCU_RESET_ADDR_SET
-    # START receives the vector-table address directly in x2, matching the
-    # U-Boot i.MX9 bootaux call sequence used by this platform model.
-    result_code = 0
-elif op == 4: # MCU_PREP
-    result_code = 0
-elif op == 5: # MCU_PREPED
-    result_code = 1
+# i.MX9 core identifiers used by NXP firmware: CM7 = 1, CM71 = 7.
+if core_id != 1 and core_id != 7:
+    self.SetRegisterUlong(0, 0xFFFFFFFFFFFFFFFF)
 else:
-    result_code = 0xFFFFFFFFFFFFFFFF
+    m7 = None
+    for cpu in machine.SystemBus.GetCPUs():
+        if cpu.Architecture == "arm-m":
+            m7 = cpu
+            break
 
-self.SetRegisterUlong(0, result_code)
+    if m7 is None:
+        self.SetRegisterUlong(0, 0xFFFFFFFFFFFFFFFF)
+    else:
+        if not hasattr(self, "imx952M7Prepared"):
+            self.imx952M7Prepared = False
+        if not hasattr(self, "imx952M7Started"):
+            self.imx952M7Started = False
+        if not hasattr(self, "imx952M7ResetAddress"):
+            self.imx952M7ResetAddress = 0
+
+        if operation == 0: # IMX_SIP_SRC_MCU_START
+            vector_address = address if address != 0 else self.imx952M7ResetAddress
+            stack_pointer = machine.SystemBus.ReadDoubleWord(vector_address)
+            reset_handler = machine.SystemBus.ReadDoubleWord(vector_address + 4)
+            if stack_pointer == 0 or reset_handler == 0:
+                self.SetRegisterUlong(0, 0xFFFFFFFFFFFFFFFF)
+            else:
+                m7.SP = RegisterValue.Create(stack_pointer, 32)
+                m7.PC = RegisterValue.Create(reset_handler & 0xFFFFFFFE, 32)
+                m7.IsHalted = False
+                self.imx952M7Prepared = True
+                self.imx952M7Started = True
+                self.SetRegisterUlong(0, 0)
+        elif operation == 1: # IMX_SIP_SRC_MCU_STARTED
+            self.SetRegisterUlong(0, 1 if self.imx952M7Started and not m7.IsHalted else 0)
+        elif operation == 2: # IMX_SIP_SRC_MCU_STOP
+            m7.IsHalted = True
+            self.imx952M7Started = False
+            self.SetRegisterUlong(0, 0)
+        elif operation == 3: # IMX_SIP_SRC_MCU_RESET_ADDR_SET
+            self.imx952M7ResetAddress = address
+            self.SetRegisterUlong(0, 0)
+        elif operation == 4: # IMX_SIP_SRC_MCU_PREP
+            m7.IsHalted = True
+            self.imx952M7Prepared = True
+            self.imx952M7Started = False
+            self.SetRegisterUlong(0, 0)
+        elif operation == 5: # IMX_SIP_SRC_MCU_PREPED
+            self.SetRegisterUlong(0, 1 if self.imx952M7Prepared else 0)
+        else:
+            self.SetRegisterUlong(0, 0xFFFFFFFFFFFFFFFF)
 """
