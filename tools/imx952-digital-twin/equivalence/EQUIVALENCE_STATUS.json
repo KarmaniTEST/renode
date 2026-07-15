@@ -29,7 +29,11 @@
     "system_manager": {
       "current_level": "FUNCTIONAL_MODEL",
       "existing_evidence": ["SCMI Base subset", "Clock subset", "Power subset", "NXP CPU protocol subset"],
-      "missing_gates": ["mx95evk_policy_inventory", "all_exposed_scmi_protocols", "resource_ownership", "power_domains", "clock_tree", "fault_reactions", "notifications", "physical_board_differential"]
+      "missing_gates": ["mx952evk_agent_policy_inventory", "all_exposed_scmi_protocols", "resource_ownership", "power_domains", "performance_domains", "clock_tree", "fault_reactions", "notifications", "physical_board_differential"]
+    },
+    "gic_its_msi": {
+      "current_level": "NOT_MODELED",
+      "missing_gates": ["its_register_model", "lpi_tables", "msi_translation", "pcie_msi", "netc_msi", "production_driver", "physical_board_differential"]
     },
     "netc": {
       "current_level": "NOT_MODELED",
@@ -38,6 +42,10 @@
     "usb": {
       "current_level": "NOT_MODELED",
       "missing_gates": ["controller_registers", "dma", "interrupts", "host", "device", "type_c_role", "production_driver", "protocol_differential", "timing_correlation"]
+    },
+    "pcie_hsio": {
+      "current_level": "NOT_MODELED",
+      "missing_gates": ["root_complex", "configuration_space", "link_state", "msi_msix", "dma", "iommu_or_smmu", "production_enumeration", "endpoint_workload_differential", "timing_correlation"]
     },
     "gpu": {
       "current_level": "NOT_MODELED",
