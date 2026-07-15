@@ -123,8 +123,10 @@ m7Dtcm: Memory.MappedMemory @ sysbus 0x20000000
 
 // AP endpoint mirrors global SMT channels 3/4/5/6 as local 0/1/2/3:
 // AP-S A2P, AP-S P2A notify, AP-NS A2P, AP-NS P2A notify.
+// The 0x1400 window is retained so the underlying protocol engine can
+// distinguish the AP endpoint while the wrapper exposes four local channels.
 systemManager: Python.PythonPeripheral @ sysbus 0x445B0000
-    size: 0x00001200
+    size: 0x00001400
     initable: true
     filename: "scripts/pydev/nxp_imx952_system_manager_transport.py"
 
