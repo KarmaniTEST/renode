@@ -7,7 +7,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 RENODE_BIN="${RENODE_BIN:-renode}"
 
 if [[ "${MODE}" == "qualify" ]]; then
-    exec "${SCRIPT_DIR}/qualify.sh" "${2:-auto}"
+    exec bash "${SCRIPT_DIR}/qualify.sh" "${2:-auto}"
 fi
 
 if ! command -v "${RENODE_BIN}" >/dev/null 2>&1; then
@@ -27,7 +27,7 @@ case "${MODE}" in
         SCRIPT="${ROOT_DIR}/scripts/single-node/nxp_imx952_evk.resc"
         ;;
     *)
-        echo "Usage: $0 [demo|platform|qualify] [auto|local|docker]" >&2
+        echo "Usage: bash $0 [demo|platform|qualify] [auto|local|docker]" >&2
         exit 2
         ;;
 esac
