@@ -5,10 +5,10 @@ using sysbus
 
 # The base script creates the platform, holds Cortex-M7 in reset and installs
 # the NXP SiP auxiliary-core lifecycle service at SMC function 0xC2000005.
-include @scripts/single-node/nxp_imx952_evk.resc
+include $ORIGIN/nxp_imx952_evk.resc
 
-$a55Firmware?=@tests/platforms/NXP_IMX952/a55_sip_boot_m7.hex
-$m7Firmware?=@tests/platforms/NXP_IMX952/m7_handshake.hex
+$a55Firmware?=$ORIGIN/../../tests/platforms/NXP_IMX952/a55_sip_boot_m7.hex
+$m7Firmware?=$ORIGIN/../../tests/platforms/NXP_IMX952/m7_handshake.hex
 
 macro reset
 """
