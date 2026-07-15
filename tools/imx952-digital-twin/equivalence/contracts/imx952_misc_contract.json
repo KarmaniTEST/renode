@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "target": "i.MX952 EVK",
+  "protocol": {
+    "id": "0x84",
+    "name": "NXP_MISC",
+    "version": "0x00010001",
+    "source": {
+      "repository": "nxp-imx/imx-sm",
+      "commit": "44f76dcb32945a60e08ea0133700b820349efbd3",
+      "implementation": "sm/rpc/scmi/rpc_scmi_misc.c",
+      "device_control_header": "devices/MIMX952/sm/dev_sm_control.h",
+      "board_control_header": "boards/mcimx952evk/sm/brd_sm_control.h",
+      "generated_config": "configs/mx952evk/config_scmi.h"
+    }
+  },
+  "messages": [
+    {"id": "0x00", "name": "PROTOCOL_VERSION"},
+    {"id": "0x01", "name": "PROTOCOL_ATTRIBUTES"},
+    {"id": "0x02", "name": "PROTOCOL_MESSAGE_ATTRIBUTES"},
+    {"id": "0x03", "name": "MISC_CONTROL_SET"},
+    {"id": "0x04", "name": "MISC_CONTROL_GET"},
+    {"id": "0x05", "name": "MISC_CONTROL_ACTION"},
+    {"id": "0x06", "name": "MISC_DISCOVER_BUILD_INFO"},
+    {"id": "0x07", "name": "MISC_ROM_PASSOVER_GET"},
+    {"id": "0x08", "name": "MISC_CONTROL_NOTIFY"},
+    {"id": "0x09", "name": "MISC_REASON_ATTRIBUTES"},
+    {"id": "0x0A", "name": "MISC_RESET_REASON"},
+    {"id": "0x0B", "name": "MISC_SI_INFO"},
+    {"id": "0x0C", "name": "MISC_CFG_INFO"},
+    {"id": "0x0D", "name": "MISC_SYSLOG"},
+    {"id": "0x0E", "name": "MISC_BOARD_INFO"},
+    {"id": "0x10", "name": "NEGOTIATE_PROTOCOL_VERSION"},
+    {"id": "0x20", "name": "MISC_CONTROL_EXT_SET"},
+    {"id": "0x21", "name": "MISC_CONTROL_EXT_GET"},
+    {"id": "0x22", "name": "MISC_DDR_INFO_GET"}
+  ],
+  "control_inventory": {
+    "device_control_count": 10,
+    "board_control_count": 8,
+    "device_controls": [
+      {"id": 0, "name": "PDM_CLK_SEL"},
+      {"id": 1, "name": "MQS1_SETTINGS"},
+      {"id": 2, "name": "SAI3_MCLK"},
+      {"id": 3, "name": "SAI4_MCLK"},
+      {"id": 4, "name": "SAI5_MCLK"},
+      {"id": 5, "name": "ADC_TEST"},
+      {"id": 6, "name": "ASRC1_MCLK"},
+      {"id": 7, "name": "ASRC2_MCLK"},
+      {"id": 8, "name": "BYPASS_AUDMIX"},
+      {"id": 9, "name": "COMBO_PHY"}
+    ],
+    "board_controls": [
+      {"id": 10, "name": "SD3_WAKE"},
+      {"id": 11, "name": "M2E_WAKE"},
+      {"id": 12, "name": "BT_WAKE"},
+      {"id": 13, "name": "M2M_WAKE"},
+      {"id": 14, "name": "BUTTON"},
+      {"id": 15, "name": "TEST"},
+      {"id": 16, "name": "PCA2131"},
+      {"id": 17, "name": "TEST_A"}
+    ]
+  },
+  "first_implementation_slice": {
+    "agent": "AP-NS",
+    "controls": [
+      {
+        "id": 9,
+        "name": "COMBO_PHY",
+        "permission": "ALL",
+        "reason": "Source-assigned AP-NS control relevant to future PCIe/NETC HSIO bring-up."
+      }
+    ],
+    "read_only_metadata_messages": [
+      "MISC_DISCOVER_BUILD_INFO",
+      "MISC_RESET_REASON",
+      "MISC_SI_INFO",
+      "MISC_CFG_INFO",
+      "MISC_BOARD_INFO"
+    ]
+  },
+  "implementation_policy": [
+    "Do not advertise MISC to AP-S until a source-derived accessible message/resource contract for AP-S is established.",
+    "Do not expose device controls beyond explicit generated-config permissions.",
+    "COMBO_PHY state is a functional control model and does not claim PCIe/NETC PHY electrical equivalence.",
+    "Silicon/config/board/build metadata must remain tied to the pinned target baseline and must not impersonate unmeasured physical fuse values.",
+    "Extended controls, ROM passover, syslog, DDR info and reset-reason detail remain unimplemented until their source-derived data contracts are qualified."
+  ]
+}
