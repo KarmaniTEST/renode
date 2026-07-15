@@ -51,21 +51,23 @@ jobs:
             -v "$PWD/scripts/pydev/nxp_imx952_lpi2c7.py:/opt/renode/scripts/pydev/nxp_imx952_lpi2c7.py:ro" \
             -w /workspace \
             antmicro/renode:nightly-dotnet \
-            renode-test tests/platforms/NXP_IMX952.robot \
+            renode-test --show-log tests/platforms/NXP_IMX952.robot \
             > imx952-qualification.log 2>&1
           status=$?
           echo "Qualification exit status: ${status}"
           echo "----- qualification log tail -----"
-          tail -n 100 imx952-qualification.log || true
+          tail -n 200 imx952-qualification.log || true
           echo "----- end qualification log tail -----"
           exit "${status}"
 
-      - name: Upload qualification log
+      - name: Upload qualification evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: imx952-qualification-log
-          path: imx952-qualification.log
+          path: |
+            imx952-qualification.log
+            logs/**/*.log
           if-no-files-found: warn
 
       - name: Verify operator entry points when present
