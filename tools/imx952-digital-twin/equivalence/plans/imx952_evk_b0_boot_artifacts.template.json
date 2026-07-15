@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "target": {
+    "soc": "i.MX952",
+    "revision": "B0",
+    "board": "i.MX952 EVK"
+  },
+  "container_version": 2,
+  "source_baseline": {
+    "imx_mkimage_commit": "1b577853ae1afe1f26cdef27548da52fb424af48"
+  },
+  "artifacts": [
+    {
+      "name": "final_boot_image",
+      "path": "flash.bin",
+      "required": true,
+      "sha256": ""
+    },
+    {
+      "name": "ahab_container",
+      "path": "mx95b0-ahab-container.img",
+      "required": true,
+      "sha256": ""
+    },
+    {
+      "name": "a55_oei_ddr",
+      "path": "a55-oei-ddrfw.bin",
+      "required": true,
+      "sha256": ""
+    },
+    {
+      "name": "m33_oei_ddr",
+      "path": "m33-oei-ddrfw.bin",
+      "required": false,
+      "sha256": ""
+    },
+    {
+      "name": "u_boot_spl",
+      "path": "u-boot-spl.bin",
+      "required": true,
+      "sha256": ""
+    },
+    {
+      "name": "arm_trusted_firmware",
+      "path": "bl31.bin",
+      "required": true,
+      "load_address": "0x8A200000",
+      "sha256": ""
+    },
+    {
+      "name": "u_boot",
+      "path": "u-boot.bin",
+      "required": true,
+      "load_address": "0x90200000",
+      "sha256": ""
+    },
+    {
+      "name": "m7_firmware",
+      "path": "m7_image.bin",
+      "required": false,
+      "load_address": "0x00000000",
+      "a55_alias": "0x303C0000",
+      "sha256": ""
+    }
+  ]
+}
