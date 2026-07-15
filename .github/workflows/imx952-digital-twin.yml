@@ -54,9 +54,16 @@ jobs:
           python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_lmm_contract.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_bbm_contract.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.template.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/profiles/imx952_evk_b0_foundation.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_physical_reference.template.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_boot_artifacts.template.json >/dev/null
+
+      - name: Generate pinned-source clock permission evidence
+        run: |
+          python3 tools/imx952-digital-twin/equivalence/generate_clock_permissions.py \
+            --output imx952-clock-permissions-generated.json
+          python3 -m json.tool imx952-clock-permissions-generated.json >/dev/null
 
       - name: Verify full physical gate fails closed without evidence
         shell: bash
@@ -110,6 +117,7 @@ jobs:
           path: |
             imx952-qualification.log
             imx952-full-physical-gate.log
+            imx952-clock-permissions-generated.json
             logs/**/*.log
           if-no-files-found: warn
 
@@ -127,6 +135,7 @@ jobs:
             test -f tools/imx952-digital-twin/equivalence/compare_evidence.py
             test -f tools/imx952-digital-twin/equivalence/qualification_gate.py
             test -f tools/imx952-digital-twin/equivalence/check_system_manager_contract.py
+            test -f tools/imx952-digital-twin/equivalence/generate_clock_permissions.py
             test -f tools/imx952-digital-twin/equivalence/validate_boot_artifacts.py
             test -f tools/imx952-digital-twin/equivalence/AUTHORITATIVE_BASELINE.json
             test -f tools/imx952-digital-twin/equivalence/EQUIVALENCE_STATUS.json
@@ -134,6 +143,7 @@ jobs:
             test -f tools/imx952-digital-twin/equivalence/contracts/imx952_lmm_contract.json
             test -f tools/imx952-digital-twin/equivalence/contracts/imx952_bbm_contract.json
             test -f tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json
+            test -f tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.template.json
             test -f tools/imx952-digital-twin/equivalence/DEEP_GAP_ANALYSIS.md
           fi
           test -f platforms/boards/nxp_imx952_evk_full.repl
