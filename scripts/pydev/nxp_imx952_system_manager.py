@@ -1,5 +1,17 @@
-# Functional i.MX95-family MU2 + SCMI System Manager transport model.
-# Address window: MU2 0x0000..0x0FFF, SCMI SRAM 0x1000..0x13FF.
+# Functional i.MX95-family MU v2 + SCMI System Manager transport model.
+#
+# The same model is used for:
+# - A55 MU2 at 0x445B0000 with two 0x80-byte SMT channels (size 0x1400)
+# - M7  MU5 at 0x44610000 with one 0x80-byte SMT channel  (size 0x1080)
+#
+# Implemented SCMI protocols:
+# - Base          0x10
+# - Power Domain  0x11
+# - Clock         0x14
+# - Pinctrl       0x19
+# - NXP CPU       0x82
+
+from Antmicro.Renode.Core import EmulationManager
 
 MU_PAR = 0x004
 MU_GCR = 0x114
@@ -8,7 +20,6 @@ MU_TSR = 0x124
 
 SCMI_SRAM = 0x1000
 SCMI_CHANNEL_SIZE = 0x80
-SCMI_CHANNEL_COUNT = 2
 SMT_CHANNEL_STATUS = 0x04
 SMT_LENGTH = 0x14
 SMT_MESSAGE_HEADER = 0x18
@@ -17,20 +28,34 @@ SMT_CHANNEL_FREE = 0x1
 
 SCMI_SUCCESS = 0
 SCMI_NOT_SUPPORTED = 0xFFFFFFFF
+SCMI_INVALID_PARAMETERS = 0xFFFFFFFE
 SCMI_NOT_FOUND = 0xFFFFFFFC
+
 SCMI_PROTOCOL_BASE = 0x10
 SCMI_PROTOCOL_POWER = 0x11
 SCMI_PROTOCOL_CLOCK = 0x14
 SCMI_PROTOCOL_PINCTRL = 0x19
+SCMI_PROTOCOL_NXP_CPU = 0x82
+
 SCMI_CLOCK_COUNT = 198
 SCMI_CLOCK_VERSION = 0x00020000
+SCMI_NXP_CPU_VERSION = 0x00010000
+IMX952_M7_CPUID = 1
+
+CPU_RUN_MODE_START = 0
+CPU_RUN_MODE_HOLD = 1
+CPU_RUN_MODE_STOP = 2
+CPU_RUN_MODE_SLEEP = 3
+CPU_VEC_FLAGS_RESUME = 1 << 31
+CPU_VEC_FLAGS_START = 1 << 30
+CPU_VEC_FLAGS_BOOT = 1 << 29
 
 
 def _read(offset, length):
     value = 0
     i = 0
     while i < length:
-        if offset + i < len(memory):
+        if 0 <= offset + i < len(memory):
             value |= (memory[offset + i] & 0xFF) << (8 * i)
         i += 1
     return value
@@ -39,7 +64,7 @@ def _read(offset, length):
 def _write(offset, value, length):
     i = 0
     while i < length:
-        if offset + i < len(memory):
+        if 0 <= offset + i < len(memory):
             memory[offset + i] = (value >> (8 * i)) & 0xFF
         i += 1
 
@@ -52,12 +77,51 @@ def _write32(offset, value):
     _write(offset, value & 0xFFFFFFFF, 4)
 
 
-def _write_ascii(offset, text, size):
+def _write_ascii(offset, text, field_size):
     i = 0
-    while i < size:
+    while i < field_size:
         value = ord(text[i]) if i < len(text) else 0
         _write(offset + i, value, 1)
         i += 1
+
+
+def _get_machine():
+    # Resolve the machine that owns this PythonPeripheral. This allows the NXP
+    # SCMI CPU protocol to control the actual Cortex-M7 model instead of keeping
+    # a synthetic shadow state.
+    for candidate in EmulationManager.Instance.CurrentEmulation.Machines:
+        if candidate.IsRegistered(self):
+            return candidate
+    return None
+
+
+def _get_m7():
+    machine = _get_machine()
+    if machine is None:
+        return None
+    try:
+        return machine["m7"]
+    except:
+        return None
+
+
+def _apply_m7_reset_vector(vector):
+    m7 = _get_m7()
+    machine = _get_machine()
+    if m7 is None or machine is None:
+        return False
+
+    # A Cortex-M image commonly exposes a vector table at the reset-vector
+    # address. Prefer that form when the first two words look valid; otherwise
+    # treat the SCMI reset vector as a direct entry point.
+    sp = machine.SystemBus.ReadDoubleWord(vector)
+    pc = machine.SystemBus.ReadDoubleWord(vector + 4)
+    if sp != 0 and pc != 0 and (sp & 0xF0000000) == 0x20000000:
+        m7.SP = sp
+        m7.PC = pc & 0xFFFFFFFE
+    else:
+        m7.PC = vector & 0xFFFFFFFE
+    return True
 
 
 def _set_response(channel, status, words, text_payload=None):
@@ -81,8 +145,8 @@ def _process_base(channel, message_id):
     if message_id == 0x00:  # PROTOCOL_VERSION
         _set_response(channel, SCMI_SUCCESS, [0x00020000])
     elif message_id == 0x01:  # PROTOCOL_ATTRIBUTES
-        # One platform agent and three implemented protocols: Power, Clock, Pinctrl.
-        _set_response(channel, SCMI_SUCCESS, [0x00000103])
+        # One platform agent and four implemented non-base protocols.
+        _set_response(channel, SCMI_SUCCESS, [0x00000104])
     elif message_id == 0x02:  # PROTOCOL_MESSAGE_ATTRIBUTES
         _set_response(channel, SCMI_SUCCESS, [0])
     elif message_id == 0x03:  # DISCOVER_VENDOR
@@ -92,12 +156,15 @@ def _process_base(channel, message_id):
     elif message_id == 0x05:  # DISCOVER_IMPLEMENTATION_VERSION
         _set_response(channel, SCMI_SUCCESS, [1])
     elif message_id == 0x06:  # DISCOVER_LIST_PROTOCOLS
-        packed = SCMI_PROTOCOL_POWER | (SCMI_PROTOCOL_CLOCK << 8) | (SCMI_PROTOCOL_PINCTRL << 16)
-        _set_response(channel, SCMI_SUCCESS, [3, packed])
+        packed = (SCMI_PROTOCOL_POWER |
+                  (SCMI_PROTOCOL_CLOCK << 8) |
+                  (SCMI_PROTOCOL_PINCTRL << 16) |
+                  (SCMI_PROTOCOL_NXP_CPU << 24))
+        _set_response(channel, SCMI_SUCCESS, [4, packed])
     elif message_id == 0x07:  # DISCOVER_AGENT
         _set_response(channel, SCMI_SUCCESS, [1])
         base = SCMI_SRAM + channel * SCMI_CHANNEL_SIZE
-        _write_ascii(base + SMT_PAYLOAD + 8, "A55-Agent", 16)
+        _write_ascii(base + SMT_PAYLOAD + 8, agent_name, 16)
         _write32(base + SMT_LENGTH, 28)
     else:
         _set_response(channel, SCMI_NOT_SUPPORTED, [])
@@ -209,6 +276,72 @@ def _process_pinctrl(channel, message_id):
         _set_response(channel, SCMI_NOT_SUPPORTED, [])
 
 
+def _process_nxp_cpu(channel, message_id):
+    base = SCMI_SRAM + channel * SCMI_CHANNEL_SIZE
+    m7 = _get_m7()
+
+    if message_id == 0x00:  # PROTOCOL_VERSION
+        _set_response(channel, SCMI_SUCCESS, [SCMI_NXP_CPU_VERSION])
+    elif message_id == 0x01:  # PROTOCOL_ATTRIBUTES
+        # IDs are indexed by System Manager. ID 1 is the i.MX 952 Cortex-M7.
+        _set_response(channel, SCMI_SUCCESS, [2])
+    elif message_id == 0x02:  # PROTOCOL_MESSAGE_ATTRIBUTES
+        _set_response(channel, SCMI_SUCCESS, [0])
+    elif message_id == 0x03:  # CPU_ATTRIBUTES
+        cpuid = _read32(base + SMT_PAYLOAD)
+        if cpuid != IMX952_M7_CPUID:
+            _set_response(channel, SCMI_NOT_FOUND, [])
+        else:
+            _write32(base + SMT_PAYLOAD, SCMI_SUCCESS)
+            _write32(base + SMT_PAYLOAD + 4, 0)
+            _write_ascii(base + SMT_PAYLOAD + 8, "Cortex-M7", 16)
+            _write32(base + SMT_LENGTH, 28)
+            _write32(base + SMT_CHANNEL_STATUS, SMT_CHANNEL_FREE)
+    elif message_id == 0x04:  # CPU_START
+        cpuid = _read32(base + SMT_PAYLOAD)
+        if cpuid != IMX952_M7_CPUID or m7 is None:
+            _set_response(channel, SCMI_INVALID_PARAMETERS, [])
+        else:
+            vector = cpu_reset_vectors.get(cpuid, 0)
+            if _apply_m7_reset_vector(vector):
+                m7.IsHalted = False
+                _set_response(channel, SCMI_SUCCESS, [])
+            else:
+                _set_response(channel, SCMI_NOT_FOUND, [])
+    elif message_id == 0x05:  # CPU_STOP
+        cpuid = _read32(base + SMT_PAYLOAD)
+        if cpuid != IMX952_M7_CPUID or m7 is None:
+            _set_response(channel, SCMI_INVALID_PARAMETERS, [])
+        else:
+            m7.IsHalted = True
+            _set_response(channel, SCMI_SUCCESS, [])
+    elif message_id == 0x06:  # CPU_RESET_VECTOR_SET
+        cpuid = _read32(base + SMT_PAYLOAD)
+        flags = _read32(base + SMT_PAYLOAD + 4)
+        vector_low = _read32(base + SMT_PAYLOAD + 8)
+        vector_high = _read32(base + SMT_PAYLOAD + 12)
+        vector = vector_low | (vector_high << 32)
+        if cpuid != IMX952_M7_CPUID or m7 is None:
+            _set_response(channel, SCMI_INVALID_PARAMETERS, [])
+        else:
+            cpu_reset_vectors[cpuid] = vector
+            _apply_m7_reset_vector(vector)
+            if flags & CPU_VEC_FLAGS_START:
+                m7.IsHalted = False
+            _set_response(channel, SCMI_SUCCESS, [])
+    elif message_id == 0x0C:  # CPU_INFO_GET
+        cpuid = _read32(base + SMT_PAYLOAD)
+        if cpuid != IMX952_M7_CPUID or m7 is None:
+            _set_response(channel, SCMI_INVALID_PARAMETERS, [])
+        else:
+            vector = cpu_reset_vectors.get(cpuid, 0)
+            run_mode = CPU_RUN_MODE_STOP if m7.IsHalted else CPU_RUN_MODE_START
+            _set_response(channel, SCMI_SUCCESS,
+                          [run_mode, 0, vector & 0xFFFFFFFF, (vector >> 32) & 0xFFFFFFFF])
+    else:
+        _set_response(channel, SCMI_NOT_SUPPORTED, [])
+
+
 def _process_scmi(channel):
     base = SCMI_SRAM + channel * SCMI_CHANNEL_SIZE
     header = _read32(base + SMT_MESSAGE_HEADER)
@@ -222,23 +355,35 @@ def _process_scmi(channel):
         _process_clock(channel, message_id)
     elif protocol_id == SCMI_PROTOCOL_PINCTRL:
         _process_pinctrl(channel, message_id)
+    elif protocol_id == SCMI_PROTOCOL_NXP_CPU:
+        _process_nxp_cpu(channel, message_id)
     else:
         _set_response(channel, SCMI_NOT_SUPPORTED, [])
     _write32(MU_GSR, _read32(MU_GSR) | (1 << channel))
-    self.NoisyLog("i.MX952 SCMI response: channel=%d protocol=0x%X message=0x%X" % (channel, protocol_id, message_id))
+    self.NoisyLog("i.MX952 SCMI response: channel=%d protocol=0x%X message=0x%X" %
+                  (channel, protocol_id, message_id))
 
 
 if request.IsInit:
-    memory = [0] * 0x1400
+    memory = [0] * size
     clock_rates = {}
     clock_enabled = {}
     clock_parents = {}
     power_domain_states = {}
+    cpu_reset_vectors = {IMX952_M7_CPUID: 0}
+
+    # A55 endpoint exposes two SMT channels; M7 endpoint exposes one.
+    scmi_channel_count = 2 if size >= 0x1400 else 1
+    agent_name = "A55-Agent" if scmi_channel_count == 2 else "M7-Agent"
+
     # i.MX95 MU V2: four transmit and four receive registers.
     _write32(MU_PAR, 0x00000404)
     _write32(MU_TSR, 0x0000000F)
-    _write32(SCMI_SRAM + SMT_CHANNEL_STATUS, SMT_CHANNEL_FREE)
-    _write32(SCMI_SRAM + SCMI_CHANNEL_SIZE + SMT_CHANNEL_STATUS, SMT_CHANNEL_FREE)
+    channel = 0
+    while channel < scmi_channel_count:
+        _write32(SCMI_SRAM + channel * SCMI_CHANNEL_SIZE + SMT_CHANNEL_STATUS,
+                 SMT_CHANNEL_FREE)
+        channel += 1
 elif request.IsRead:
     request.Value = _read(request.Offset, request.Length)
 elif request.IsWrite:
@@ -253,7 +398,7 @@ elif request.IsWrite:
         # Process each requested SMT channel synchronously.
         _write32(MU_GCR, value)
         channel = 0
-        while channel < SCMI_CHANNEL_COUNT:
+        while channel < scmi_channel_count:
             if value & (1 << channel):
                 _process_scmi(channel)
             channel += 1
