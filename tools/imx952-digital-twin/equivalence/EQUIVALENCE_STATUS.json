@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "target": "i.MX952 EVK B0",
   "policy": "A subsystem may be promoted only when every required gate has reproducible evidence against the pinned physical reference.",
   "levels": [
@@ -38,16 +38,20 @@
         "SCMI Clock 3.0 functional subset",
         "SCMI Sensor 3.1 with i.MX952 TEMP_ANA/TEMP_A55 access separation",
         "NXP LMM 1.1 functional lifecycle and notification permission separation",
+        "exact seven-channel mx952evk SMT topology",
+        "functional M7-to-AP-NS LMM P2A notification delivery with modeled GSR pending state",
+        "NXP BBM 1.0 functional GPR/RTC/button resource and permission model",
         "NXP CPU protocol M7 lifecycle subset",
-        "tests/platforms/NXP_IMX952_FULL_EQUIVALENCE.robot"
+        "tests/platforms/NXP_IMX952_FULL_EQUIVALENCE.robot",
+        "tests/platforms/NXP_IMX952_BBM.robot"
       ],
       "missing_gates": [
         "complete_clock_permission_inventory",
         "complete_pinctrl_resource_and_permission_model",
-        "nxp_bbm_protocol",
         "nxp_misc_protocol",
-        "p2a_notification_channels",
-        "priority_notification_channel",
+        "priority_notification_channel_delivery",
+        "notification_irq_wiring_and_latency",
+        "bbm_notification_delivery",
         "fault_reactions",
         "production_firmware_differential",
         "physical_board_differential"
