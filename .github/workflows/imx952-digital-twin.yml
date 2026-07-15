@@ -46,7 +46,9 @@ jobs:
             -v
           python3 -m json.tool tools/imx952-digital-twin/equivalence/AUTHORITATIVE_BASELINE.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/EQUIVALENCE_STATUS.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_contract.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/profiles/imx952_evk_b0_foundation.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_physical_reference.template.json >/dev/null
 
       - name: Pull official Renode nightly runtime
         run: docker pull antmicro/renode:nightly-dotnet
@@ -89,8 +91,11 @@ jobs:
             test -f tools/imx952-digital-twin/run.sh
             test -f tools/imx952-digital-twin/run.ps1
             test -f tools/imx952-digital-twin/qualify.sh
+            test -f tools/imx952-digital-twin/equivalence/collect_evidence.py
             test -f tools/imx952-digital-twin/equivalence/compare_evidence.py
             test -f tools/imx952-digital-twin/equivalence/AUTHORITATIVE_BASELINE.json
             test -f tools/imx952-digital-twin/equivalence/EQUIVALENCE_STATUS.json
+            test -f tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_contract.json
+            test -f tools/imx952-digital-twin/equivalence/DEEP_GAP_ANALYSIS.md
           fi
           test -f scripts/single-node/nxp_imx952_evk_heterogeneous_demo.resc
