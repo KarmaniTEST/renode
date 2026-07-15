@@ -77,12 +77,12 @@ AP Secure And Nonsecure Agents Expose Source Derived Protocols
     Should Be Equal As Numbers    ${ap_s_status}    0
     Should Be Equal As Numbers    ${ap_s_attrs}     0x00000305
 
-    # AP-NS additionally advertises Sensor, NXP LMM and NXP BBM.
+    # AP-NS additionally advertises Sensor, NXP LMM, NXP BBM and NXP MISC.
     Call AP NS    0x00004001
     ${ap_ns_status}=    Read Dword    ${AP_NS_PAYLOAD}
     ${ap_ns_attrs}=     Read Dword    ${AP_NS_RESPONSE1}
     Should Be Equal As Numbers    ${ap_ns_status}    0
-    Should Be Equal As Numbers    ${ap_ns_attrs}     0x00000308
+    Should Be Equal As Numbers    ${ap_ns_attrs}     0x00000309
 
 System Power Performance Sensor And LMM Versions Match NXP Sources
     Create Full Candidate
