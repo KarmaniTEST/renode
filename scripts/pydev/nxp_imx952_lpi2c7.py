@@ -10,6 +10,7 @@ MTDR = 0x60
 MRDR = 0x70
 
 MSR_SDF = 0x00000200
+MSR_NDF = 0x00000400
 MRDR_RXEMPTY = 0x00004000
 MCR_RTF = 0x00000100
 MCR_RRF = 0x00000200
@@ -58,14 +59,13 @@ def _new_device():
 
 
 def _device(address):
-    if address not in devices:
-        devices[address] = _new_device()
-        pointers[address] = 0
-    return devices[address]
+    return devices.get(address)
 
 
 def _initialize_tcpc():
-    dev = _device(TCPC_ADDR)
+    devices[TCPC_ADDR] = _new_device()
+    pointers[TCPC_ADDR] = 0
+    dev = devices[TCPC_ADDR]
     # NXP USB vendor ID and a deterministic PTN5110-like product identity.
     dev[TCPC_VENDOR_ID] = 0xC9
     dev[TCPC_VENDOR_ID + 1] = 0x1F
@@ -83,7 +83,8 @@ def _begin(address, direction):
     current_address = address & 0x7F
     current_direction = direction & 1
     write_bytes = []
-    _device(current_address)
+    if _device(current_address) is None:
+        _write32(MSR, _read32(MSR) | MSR_NDF)
 
 
 def _transmit_byte(value):
@@ -94,6 +95,8 @@ def _transmit_byte(value):
         return
 
     dev = _device(current_address)
+    if dev is None:
+        return
     if len(write_bytes) == 1:
         pointers[current_address] = value
     else:
@@ -114,6 +117,9 @@ def _prepare_receive(count):
         return
 
     dev = _device(current_address)
+    if dev is None:
+        rx_queue = [0] * count
+        return
     pointer = pointers.get(current_address, 0) & 0xFF
     i = 0
     while i < count:
