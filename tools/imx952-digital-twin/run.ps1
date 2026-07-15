@@ -49,5 +49,12 @@ switch ($Mode) {
 }
 
 Write-Host "[i.MX952] Starting $Mode with $Renode"
-& $Renode --console $Resc
-exit $LASTEXITCODE
+Push-Location $RootDir
+try {
+    & $Renode --console $Resc
+    $ExitCode = $LASTEXITCODE
+}
+finally {
+    Pop-Location
+}
+exit $ExitCode
