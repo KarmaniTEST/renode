@@ -1,9 +1,12 @@
 param(
-    [ValidateSet("demo", "platform", "qualify")]
+    [ValidateSet("demo", "platform", "full-platform", "qualify", "qualify-full")]
     [string]$Mode = "demo",
 
     [ValidateSet("auto", "local", "docker")]
-    [string]$QualificationMode = "auto"
+    [string]$RuntimeMode = "auto",
+
+    [ValidateSet("engineering", "full-physical")]
+    [string]$QualificationMode = "engineering"
 )
 
 $ErrorActionPreference = "Stop"
@@ -13,11 +16,16 @@ $RootDir = (Resolve-Path (Join-Path $ScriptDir "../..")).Path
 if ($Mode -eq "qualify") {
     $Qualify = Join-Path $ScriptDir "qualify.sh"
     if (Get-Command bash -ErrorAction SilentlyContinue) {
-        & bash $Qualify $QualificationMode
+        & bash $Qualify $RuntimeMode
         exit $LASTEXITCODE
     }
-
     throw "Qualification requires bash (Git Bash/WSL) or use the GitHub Actions workflow."
+}
+
+if ($Mode -eq "qualify-full") {
+    $QualifyFull = Join-Path $ScriptDir "qualify-full.ps1"
+    & $QualifyFull -RuntimeMode $RuntimeMode -QualificationMode $QualificationMode
+    exit $LASTEXITCODE
 }
 
 $Renode = $env:RENODE_BIN
@@ -45,6 +53,9 @@ switch ($Mode) {
     }
     "platform" {
         $Resc = Join-Path $RootDir "scripts/single-node/nxp_imx952_evk.resc"
+    }
+    "full-platform" {
+        $Resc = Join-Path $RootDir "scripts/single-node/nxp_imx952_evk_full.resc"
     }
 }
 
