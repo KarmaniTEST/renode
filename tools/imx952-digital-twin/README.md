@@ -104,14 +104,12 @@ For application integration:
 
 A full NXP boot-container / Boot ROM chain is deliberately not claimed as supported until the missing boot services and devices are modeled and qualified end to end.
 
-## Definition of ready-to-use for this branch
+## Qualified status
 
-This branch is considered ready for engineering use when:
+**Qualified for the documented engineering scope on 2026-07-15.**
 
-- the dedicated GitHub Actions qualification workflow is green;
-- the complete `NXP_IMX952.robot` suite passes from a clean runtime;
-- the demo starts with no manual repository edits;
-- supported and unsupported hardware paths remain explicit in this document;
-- any production firmware scenario added later has its own deterministic regression test.
+The complete `tests/platforms/NXP_IMX952.robot` suite passed from a clean official Renode nightly runtime with **8/8 deterministic tests successful**. The qualification covered A55/M7 execution and shared memory, the real A55 SiP SMC lifecycle path, A55 and M7 SCMI roles, NXP SCMI CPU control, ELE early-boot services, LPI2C7, and bidirectional MU7 messaging.
 
-Until the qualification workflow is green, treat the branch as a release candidate rather than a fully qualified digital twin.
+The same CI gate also verified the Linux launcher, Windows launcher, qualification launcher, operator guide, heterogeneous demo entry point, and preserved qualification evidence.
+
+This qualification applies to the supported engineering use cases listed above. It does not imply full physical-hardware equivalence, complete SoC peripheral coverage, or cycle-accurate timing.
