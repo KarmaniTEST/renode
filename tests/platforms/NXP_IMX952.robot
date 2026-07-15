@@ -6,7 +6,9 @@ Resource          ${RENODEKEYWORDS}
 
 *** Variables ***
 ${PLATFORM}       ${CURDIR}/../../platforms/boards/nxp_imx952_evk.repl
+${SIP_SCRIPT}     ${CURDIR}/../../scripts/single-node/nxp_imx952_evk.resc
 ${A55_HEX}        ${CURDIR}/NXP_IMX952/a55_handshake.hex
+${A55_SIP_HEX}    ${CURDIR}/NXP_IMX952/a55_sip_boot_m7.hex
 ${M7_HEX}         ${CURDIR}/NXP_IMX952/m7_handshake.hex
 ${MAGIC_ADDR}     0x88020000
 ${COMMAND_ADDR}   0x88020004
@@ -59,6 +61,26 @@ Four A55 Cores And M7 Complete Shared Memory Handshake
     ${result}=     Read Dword    ${RESULT_ADDR}
     Should Be Equal As Numbers    ${magic}      0xA55A55A5
     Should Be Equal As Numbers    ${command}    0x95200001
+    Should Be Equal As Numbers    ${status}     0x4D370001
+    Should Be Equal As Numbers    ${result}     0x600D600D
+
+A55 NXP SiP Service Releases M7 And Completes Handshake
+    [Timeout]    30 seconds
+    Execute Command    i @${SIP_SCRIPT}
+    Execute Command    sysbus LoadHEX @${M7_HEX}
+    Execute Command    sysbus LoadHEX @${A55_SIP_HEX}
+    Execute Command    a55Cluster.a55_0 PC 0x80000000
+    Execute Command    emulation RunFor "0.02"
+    ${prep}=       Read Dword    0x88020020
+    ${prepared}=   Read Dword    0x88020024
+    ${start}=      Read Dword    0x88020028
+    ${started}=    Read Dword    0x8802002C
+    ${status}=     Read Dword    ${STATUS_ADDR}
+    ${result}=     Read Dword    ${RESULT_ADDR}
+    Should Be Equal As Numbers    ${prep}       0
+    Should Be Equal As Numbers    ${prepared}   1
+    Should Be Equal As Numbers    ${start}      0
+    Should Be Equal As Numbers    ${started}    1
     Should Be Equal As Numbers    ${status}     0x4D370001
     Should Be Equal As Numbers    ${result}     0x600D600D
 
