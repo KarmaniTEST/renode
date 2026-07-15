@@ -6,6 +6,7 @@ on:
     branches:
       - imx952-a55-m7-support
       - imx952-digital-twin-ready
+      - imx952-full-equivalence-program
     paths:
       - "platforms/boards/nxp_imx952_evk.repl"
       - "scripts/pydev/nxp_imx952_*.py"
@@ -36,6 +37,16 @@ jobs:
     steps:
       - name: Checkout candidate
         uses: actions/checkout@v4
+
+      - name: Validate equivalence evidence framework
+        run: |
+          python3 -m unittest discover \
+            -s tools/imx952-digital-twin/equivalence/tests \
+            -p 'test_*.py' \
+            -v
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/AUTHORITATIVE_BASELINE.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/EQUIVALENCE_STATUS.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/profiles/imx952_evk_b0_foundation.json >/dev/null
 
       - name: Pull official Renode nightly runtime
         run: docker pull antmicro/renode:nightly-dotnet
@@ -78,5 +89,8 @@ jobs:
             test -f tools/imx952-digital-twin/run.sh
             test -f tools/imx952-digital-twin/run.ps1
             test -f tools/imx952-digital-twin/qualify.sh
+            test -f tools/imx952-digital-twin/equivalence/compare_evidence.py
+            test -f tools/imx952-digital-twin/equivalence/AUTHORITATIVE_BASELINE.json
+            test -f tools/imx952-digital-twin/equivalence/EQUIVALENCE_STATUS.json
           fi
           test -f scripts/single-node/nxp_imx952_evk_heterogeneous_demo.resc
