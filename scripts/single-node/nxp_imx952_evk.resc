@@ -23,38 +23,52 @@ m7 IsHalted true
 # Core ID 1 is Cortex-M7 on i.MX 952.
 a55Cluster.a55_0 PSCIEmulationMethod SMC
 a55Cluster.a55_0 AddCustomPSCIHandler 0xC2000005 """
+from Antmicro.Renode.Core import EmulationManager
+from Antmicro.Renode.Peripherals.CPU import RegisterValue
+
 op = self.GetRegisterUlong(1)
 address = self.GetRegisterUlong(2)
 core_id = self.GetRegisterUlong(3)
-result = 0
+result_code = 0
 
-if core_id != 1:
-    result = 0xFFFFFFFFFFFFFFFF
-else:
-    m7 = self.Machine["m7"]
-    if op == 0: # MCU_START
-        sp = self.Machine.SystemBus.ReadDoubleWord(address)
-        pc = self.Machine.SystemBus.ReadDoubleWord(address + 4)
-        if pc == 0:
-            result = 0xFFFFFFFFFFFFFFFF
-        else:
-            m7.SP = sp
-            m7.PC = pc & 0xFFFFFFFE
-            m7.IsHalted = False
-    elif op == 1: # MCU_STARTED
-        result = 0 if m7.IsHalted else 1
-    elif op == 2: # MCU_STOP
-        m7.IsHalted = True
-    elif op == 3: # MCU_RESET_ADDR_SET
-        # START receives the vector-table address directly in x2, matching the
-        # U-Boot i.MX9 bootaux call sequence used by this platform model.
-        result = 0
-    elif op == 4: # MCU_PREP
-        result = 0
-    elif op == 5: # MCU_PREPED
-        result = 1
+# ARMv8 custom PSCI handlers do not expose a direct Machine property on every
+# Renode version. Resolve the i.MX 952 machine and M7 by name through the current
+# emulation, matching the lookup used by the SCMI System Manager model.
+machine = None
+m7 = None
+emulation = EmulationManager.Instance.CurrentEmulation
+for candidate in emulation.Machines:
+    lookup = emulation.TryGetEmulationElementByName("m7", candidate)
+    if lookup[0]:
+        machine = candidate
+        m7 = lookup[1]
+        break
+
+if core_id != 1 or m7 is None or machine is None:
+    result_code = 0xFFFFFFFFFFFFFFFF
+elif op == 0: # MCU_START
+    sp = machine.SystemBus.ReadDoubleWord(address)
+    pc = machine.SystemBus.ReadDoubleWord(address + 4)
+    if pc == 0:
+        result_code = 0xFFFFFFFFFFFFFFFF
     else:
-        result = 0xFFFFFFFFFFFFFFFF
+        m7.SP = RegisterValue.Create(sp, 32)
+        m7.PC = RegisterValue.Create(pc & 0xFFFFFFFE, 32)
+        m7.IsHalted = False
+elif op == 1: # MCU_STARTED
+    result_code = 0 if m7.IsHalted else 1
+elif op == 2: # MCU_STOP
+    m7.IsHalted = True
+elif op == 3: # MCU_RESET_ADDR_SET
+    # START receives the vector-table address directly in x2, matching the
+    # U-Boot i.MX9 bootaux call sequence used by this platform model.
+    result_code = 0
+elif op == 4: # MCU_PREP
+    result_code = 0
+elif op == 5: # MCU_PREPED
+    result_code = 1
+else:
+    result_code = 0xFFFFFFFFFFFFFFFF
 
-self.SetRegisterUlong(0, result)
+self.SetRegisterUlong(0, result_code)
 """
