@@ -175,3 +175,35 @@ LPI2C7 Reads EVK Type C Controller Identity And NACKs Unknown Devices
     Write Dword    0x422F0060    0x000004A2
     ${unknown_status}=    Read Dword    0x422F0014
     Should Be Equal As Numbers    ${unknown_status}    0x00000400
+
+MU7 Transfers Data Bidirectionally Between A55 And M7 Endpoints
+    Create Test Machine
+    # Enable receive interrupt for word 0 on both endpoints.
+    Write Dword    0x42050128    0x00000001
+    Write Dword    0x42440128    0x00000001
+
+    # A55 -> M7: write TX0 on A instance, observe RX status/data on B instance.
+    Write Dword    0x42050200    0xA55A0001
+    ${m7_rx_status}=    Read Dword    0x4244012C
+    ${m7_rx_data}=      Read Dword    0x42440280
+    ${m7_rx_cleared}=   Read Dword    0x4244012C
+    Should Be Equal As Numbers    ${m7_rx_status}     0x00000001
+    Should Be Equal As Numbers    ${m7_rx_data}       0xA55A0001
+    Should Be Equal As Numbers    ${m7_rx_cleared}    0x00000000
+
+    # M7 -> A55: write TX0 on B instance, observe RX status/data on A instance.
+    Write Dword    0x42440200    0x4D370001
+    ${a55_rx_status}=    Read Dword    0x4205012C
+    ${a55_rx_data}=      Read Dword    0x42050280
+    ${a55_rx_cleared}=   Read Dword    0x4205012C
+    Should Be Equal As Numbers    ${a55_rx_status}     0x00000001
+    Should Be Equal As Numbers    ${a55_rx_data}       0x4D370001
+    Should Be Equal As Numbers    ${a55_rx_cleared}    0x00000000
+
+    # General-purpose interrupt flag propagation in both directions.
+    Write Dword    0x42050114    0x00000001
+    ${m7_gsr}=    Read Dword    0x42440118
+    Should Be Equal As Numbers    ${m7_gsr}    0x00000001
+    Write Dword    0x42440118    0x00000001
+    ${m7_gsr_cleared}=    Read Dword    0x42440118
+    Should Be Equal As Numbers    ${m7_gsr_cleared}    0x00000000
