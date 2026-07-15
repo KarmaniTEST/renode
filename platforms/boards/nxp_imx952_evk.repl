@@ -1,5 +1,5 @@
 // Initial NXP i.MX 952 EVK platform support focused on heterogeneous
-// Cortex-A55 + Cortex-M7 execution.
+// Cortex-A55 + Cortex-M7 execution and early boot services.
 //
 // Public hardware layout used by this model:
 // - 4x Cortex-A55 application cluster (CPU0..CPU3)
@@ -9,13 +9,15 @@
 // - 2 GiB EVK DDR window starting at 0x80000000
 // - LPUART1 at 0x44380000
 // - M7 ITCM/DTCM: 256 KiB each
-// - A55 and M7 MU/SCMI address windows
+// - functional A55 MU2/SCMI System Manager transport
+// - functional early-boot ELE MU service
+// - functional LPI2C7 path with the EVK USB Type-C controller
 //
 // Scope limitation:
-// This is initial platform support, not a complete hardware-faithful SoC model.
-// Messaging Unit and SCMI windows are memory-backed placeholders. Boot ROM,
-// ELE/System Manager firmware, clocks/resets, GIC ITS, NETC and boot storage are
-// not yet modeled as functional peripherals.
+// This is initial boot-capable platform support, not a complete hardware-faithful
+// SoC model. Boot ROM, the complete ELE/System Manager firmware surface, GIC ITS,
+// NETC and full boot-media integration are future work. M7-side MU windows remain
+// memory-backed until the corresponding inter-core mailbox model is implemented.
 
 a55Cluster: CPU.Cluster @ sysbus
 
@@ -142,17 +144,28 @@ m7Itcm: Memory.MappedMemory @ sysbus 0x00000000
 m7Dtcm: Memory.MappedMemory @ sysbus 0x20000000
     size: 0x00040000
 
-// A55-side MU7 from the NXP Linux DTSI. Functional MU behavior is future work.
+// A55-side MU7 from the NXP Linux DTSI. Functional MU7 behavior is future work.
 a55Mu7Stub: Memory.MappedMemory @ sysbus 0x42050000
     size: 0x00010000
 
-// A55 System Manager transport from the NXP Linux DTSI. MU2 is followed by a
-// 1 KiB SRAM containing two 128-byte SCMI shared-memory sections.
-a55Mu2Stub: Memory.MappedMemory @ sysbus 0x445B0000
-    size: 0x00001000
+// A55 System Manager transport. The 0x1400 window contains MU2 followed by
+// the SCMI SRAM with two SMT channels.
+systemManager: Python.PythonPeripheral @ sysbus 0x445B0000
+    size: 0x00001400
+    initable: true
+    filename: "scripts/pydev/nxp_imx952_system_manager.py"
 
-a55ScmiSram: Memory.MappedMemory @ sysbus 0x445B1000
-    size: 0x00000400
+// EdgeLock Enclave mailbox service used for SoC identity, lifecycle and fuses.
+ele: Python.PythonPeripheral @ sysbus 0x47550000
+    size: 0x00010000
+    initable: true
+    filename: "scripts/pydev/nxp_imx952_ele.py"
+
+// EVK board initialization uses LPI2C7 for the USB Type-C port controller.
+lpi2c7: Python.PythonPeripheral @ sysbus 0x422F0000
+    size: 0x00010000
+    initable: true
+    filename: "scripts/pydev/nxp_imx952_lpi2c7.py"
 
 // M7-side MU5 and SCMI shared-memory windows from the current Zephyr i.MX 952
 // M7 device tree.
