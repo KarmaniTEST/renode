@@ -21,6 +21,24 @@ operation = self.GetRegisterUlong(1)
 address = self.GetRegisterUlong(2)
 core_id = self.GetRegisterUlong(3)
 
+# PSCIPythonEngine executes this code repeatedly in one persistent Python scope.
+# Keep lifecycle state in that scope instead of attaching dynamic attributes to
+# the ARMv8A IronPython wrapper, which current Renode intentionally disallows.
+try:
+    imx952M7Prepared
+except NameError:
+    imx952M7Prepared = False
+
+try:
+    imx952M7Started
+except NameError:
+    imx952M7Started = False
+
+try:
+    imx952M7ResetAddress
+except NameError:
+    imx952M7ResetAddress = 0
+
 # i.MX9 core identifiers used by NXP firmware: CM7 = 1, CM71 = 7.
 if core_id != 1 and core_id != 7:
     self.SetRegisterUlong(0, 0xFFFFFFFFFFFFFFFF)
@@ -34,15 +52,8 @@ else:
     if m7 is None:
         self.SetRegisterUlong(0, 0xFFFFFFFFFFFFFFFF)
     else:
-        if not hasattr(self, "imx952M7Prepared"):
-            self.imx952M7Prepared = False
-        if not hasattr(self, "imx952M7Started"):
-            self.imx952M7Started = False
-        if not hasattr(self, "imx952M7ResetAddress"):
-            self.imx952M7ResetAddress = 0
-
         if operation == 0: # IMX_SIP_SRC_MCU_START
-            vector_address = address if address != 0 else self.imx952M7ResetAddress
+            vector_address = address if address != 0 else imx952M7ResetAddress
             stack_pointer = machine.SystemBus.ReadDoubleWord(vector_address)
             reset_handler = machine.SystemBus.ReadDoubleWord(vector_address + 4)
             if stack_pointer == 0 or reset_handler == 0:
@@ -51,25 +62,25 @@ else:
                 m7.SP = RegisterValue.Create(stack_pointer, 32)
                 m7.PC = RegisterValue.Create(reset_handler & 0xFFFFFFFE, 32)
                 m7.IsHalted = False
-                self.imx952M7Prepared = True
-                self.imx952M7Started = True
+                imx952M7Prepared = True
+                imx952M7Started = True
                 self.SetRegisterUlong(0, 0)
         elif operation == 1: # IMX_SIP_SRC_MCU_STARTED
-            self.SetRegisterUlong(0, 1 if self.imx952M7Started and not m7.IsHalted else 0)
+            self.SetRegisterUlong(0, 1 if imx952M7Started and not m7.IsHalted else 0)
         elif operation == 2: # IMX_SIP_SRC_MCU_STOP
             m7.IsHalted = True
-            self.imx952M7Started = False
+            imx952M7Started = False
             self.SetRegisterUlong(0, 0)
         elif operation == 3: # IMX_SIP_SRC_MCU_RESET_ADDR_SET
-            self.imx952M7ResetAddress = address
+            imx952M7ResetAddress = address
             self.SetRegisterUlong(0, 0)
         elif operation == 4: # IMX_SIP_SRC_MCU_PREP
             m7.IsHalted = True
-            self.imx952M7Prepared = True
-            self.imx952M7Started = False
+            imx952M7Prepared = True
+            imx952M7Started = False
             self.SetRegisterUlong(0, 0)
         elif operation == 5: # IMX_SIP_SRC_MCU_PREPED
-            self.SetRegisterUlong(0, 1 if self.imx952M7Prepared else 0)
+            self.SetRegisterUlong(0, 1 if imx952M7Prepared else 0)
         else:
             self.SetRegisterUlong(0, 0xFFFFFFFFFFFFFFFF)
 """
