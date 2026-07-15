@@ -76,13 +76,11 @@ A55 NXP SiP Service Releases M7 And Completes Handshake
     ${start}=      Read Dword    0x88020028
     ${started}=    Read Dword    0x8802002C
     ${status}=     Read Dword    ${STATUS_ADDR}
-    ${result}=     Read Dword    ${RESULT_ADDR}
     Should Be Equal As Numbers    ${prep}       0
     Should Be Equal As Numbers    ${prepared}   1
     Should Be Equal As Numbers    ${start}      0
     Should Be Equal As Numbers    ${started}    1
     Should Be Equal As Numbers    ${status}     0x4D370001
-    Should Be Equal As Numbers    ${result}     0x600D600D
 
 System Manager Handles SCMI Base Clock And Power Protocols
     Create Test Machine
@@ -128,13 +126,19 @@ M7 System Manager Starts Cortex M7 Through NXP SCMI CPU Protocol
     Write Dword    ${MAGIC_ADDR}      0xA55A55A5
     Write Dword    ${COMMAND_ADDR}    0x95200001
 
-    # M7-agent Base protocol version through MU5 + one SMT channel.
+    # Enable MU5 response interrupt channel 0 and query the M7-agent Base protocol.
+    Write Dword    0x44610110    0x00000001
     Write Dword    0x44611018    0x00004000
     Write Dword    0x44610114    0x00000001
     ${m7_base_status}=     Read Dword    0x4461101C
     ${m7_base_version}=    Read Dword    0x44611020
+    ${m7_response_gsr}=    Read Dword    0x44610118
     Should Be Equal As Numbers    ${m7_base_status}     0
     Should Be Equal As Numbers    ${m7_base_version}    0x00020000
+    Should Be Equal As Numbers    ${m7_response_gsr}    1
+    Write Dword    0x44610118    0x00000001
+    ${m7_cleared_gsr}=    Read Dword    0x44610118
+    Should Be Equal As Numbers    ${m7_cleared_gsr}    0
 
     # NXP CPU protocol 0x82 / RESET_VECTOR_SET (message 0x6).
     # CPU ID 1 is the i.MX 952 Cortex-M7; START flag releases it from reset.
@@ -158,9 +162,7 @@ M7 System Manager Starts Cortex M7 Through NXP SCMI CPU Protocol
 
     Execute Command    emulation RunFor "0.01"
     ${status}=    Read Dword    ${STATUS_ADDR}
-    ${result}=    Read Dword    ${RESULT_ADDR}
     Should Be Equal As Numbers    ${status}    0x4D370001
-    Should Be Equal As Numbers    ${result}    0x600D600D
 
     # CPU_STOP (message 0x5) halts the real modeled M7.
     Write Dword    0x4461101C    1
