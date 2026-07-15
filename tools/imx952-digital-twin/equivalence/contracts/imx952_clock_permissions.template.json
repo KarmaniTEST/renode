@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "target": "i.MX952 EVK",
+  "source": {
+    "repository": "nxp-imx/imx-sm",
+    "commit": "44f76dcb32945a60e08ea0133700b820349efbd3",
+    "clock_header": "devices/MIMX952/sm/dev_sm_clock.h",
+    "generated_config": "configs/mx952evk/config_scmi.h"
+  },
+  "policy": "This file is an extraction target. Populate exact clock IDs per agent from the pinned generated configuration before replacing the current generic Clock exposure.",
+  "agents": {
+    "M7": {
+      "known_source_symbols": [
+        "DEV_SM_CLK_CAN1",
+        "DEV_SM_CLK_LPTMR1",
+        "DEV_SM_CLK_LPTMR2",
+        "DEV_SM_CLK_LPUART3",
+        "DEV_SM_CLK_M7SYSTICK"
+      ]
+    },
+    "AP-S": {
+      "known_source_symbols": [
+        "DEV_SM_CLK_ARMPLL_PFD0",
+        "DEV_SM_CLK_ARMPLL_PFD0_UNGATED",
+        "DEV_SM_CLK_ARMPLL_PFD1",
+        "DEV_SM_CLK_ARMPLL_PFD1_UNGATED",
+        "DEV_SM_CLK_ARMPLL_PFD2",
+        "DEV_SM_CLK_ARMPLL_PFD2_UNGATED",
+        "DEV_SM_CLK_ARMPLL_PFD3",
+        "DEV_SM_CLK_ARMPLL_PFD3_UNGATED",
+        "DEV_SM_CLK_ARMPLL_VCO"
+      ]
+    },
+    "AP-NS": {
+      "known_source_symbols": [
+        "DEV_SM_CLK_HSIOPCIEAUX",
+        "DEV_SM_CLK_HSIOPCIE_CGC",
+        "DEV_SM_CLK_HSIOPLL",
+        "DEV_SM_CLK_HSIOPLL_VCO",
+        "DEV_SM_CLK_HSIOUSB_CGC",
+        "DEV_SM_CLK_NETC_CGC",
+        "DEV_SM_CLK_NPU_CGC",
+        "DEV_SM_CLK_USDHC1",
+        "DEV_SM_CLK_USDHC2",
+        "DEV_SM_CLK_USDHC3",
+        "DEV_SM_CLK_LPUART1"
+      ]
+    }
+  },
+  "qualification_rule": "Clock PROTOCOL_ATTRIBUTES, CLOCK_ATTRIBUTES, rate/config/parent operations and Base discovery must be agent-filtered only after the complete source-symbol-to-ID map is generated and regression-tested."
+}
