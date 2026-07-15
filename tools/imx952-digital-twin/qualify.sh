@@ -17,7 +17,7 @@ run_local() {
 
     if has_built_repository_runner; then
         echo "[i.MX952] Running qualification with the built repository test runner"
-        ./test.sh "${TEST_PATH}"
+        ./test.sh --show-log "${TEST_PATH}"
         return
     fi
 
@@ -39,7 +39,7 @@ run_docker() {
         -v "${ROOT_DIR}/scripts/pydev/nxp_imx952_lpi2c7.py:/opt/renode/scripts/pydev/nxp_imx952_lpi2c7.py:ro" \
         -w /workspace \
         antmicro/renode:nightly-dotnet \
-        renode-test "${TEST_PATH}"
+        renode-test --show-log "${TEST_PATH}"
 }
 
 run_selected() {
