@@ -19,9 +19,9 @@ from typing import Any, Dict, List
 ROOT = Path(__file__).resolve().parent
 
 MANDATORY_FULL_EQUIVALENCE = [
-    "cpu_execution",
-    "boot_rom",
-    "ele",
+    "a55_m7_heterogeneous_execution",
+    "boot_rom_and_production_boot_chain",
+    "edgelock_enclave",
     "system_manager",
     "gic_its_msi",
     "netc",
@@ -29,7 +29,7 @@ MANDATORY_FULL_EQUIVALENCE = [
     "pcie_hsio",
     "gpu",
     "npu",
-    "timing",
+    "timing_and_performance",
 ]
 
 
@@ -39,13 +39,13 @@ def load_json(path: Path) -> Dict[str, Any]:
 
 
 def find_status_entry(document: Dict[str, Any], name: str) -> Dict[str, Any] | None:
-    candidates = document.get("subsystems", [])
+    candidates = document.get("subsystems", {})
     if isinstance(candidates, dict):
         value = candidates.get(name)
         if isinstance(value, dict):
             return value
         if isinstance(value, str):
-            return {"status": value}
+            return {"current_level": value}
         return None
     for entry in candidates:
         if not isinstance(entry, dict):
@@ -54,6 +54,15 @@ def find_status_entry(document: Dict[str, Any], name: str) -> Dict[str, Any] | N
         if key == name:
             return entry
     return None
+
+
+def entry_maturity(entry: Dict[str, Any]) -> str:
+    return str(
+        entry.get("current_level")
+        or entry.get("status")
+        or entry.get("maturity")
+        or ""
+    ).upper()
 
 
 def run_unit_tests() -> None:
@@ -90,9 +99,11 @@ def validate_full_status(status: Dict[str, Any]) -> List[str]:
         if entry is None:
             errors.append(f"missing mandatory subsystem status: {subsystem}")
             continue
-        maturity = str(entry.get("status") or entry.get("maturity") or "").upper()
+        maturity = entry_maturity(entry)
         if maturity != "FULL_EQUIVALENCE":
             errors.append(f"{subsystem}: {maturity or 'UNKNOWN'} != FULL_EQUIVALENCE")
+        if entry.get("missing_gates"):
+            errors.append(f"{subsystem}: unresolved gates remain")
     return errors
 
 
