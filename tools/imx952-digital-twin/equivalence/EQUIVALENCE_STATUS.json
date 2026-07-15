@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "target": "i.MX952 EVK B0",
   "policy": "A subsystem may be promoted only when every required gate has reproducible evidence against the pinned physical reference.",
   "levels": [
@@ -28,8 +28,30 @@
     },
     "system_manager": {
       "current_level": "FUNCTIONAL_MODEL",
-      "existing_evidence": ["SCMI Base subset", "Clock subset", "Power subset", "NXP CPU protocol subset"],
-      "missing_gates": ["mx952evk_agent_policy_inventory", "all_exposed_scmi_protocols", "resource_ownership", "power_domains", "performance_domains", "clock_tree", "fault_reactions", "notifications", "physical_board_differential"]
+      "existing_evidence": [
+        "explicit M7/AP-S/AP-NS agent identity",
+        "source-derived agent-specific Power permissions",
+        "source-derived Performance domains and permissions",
+        "SCMI Power 3.1 functional contract",
+        "SCMI System Power 2.1 functional contract",
+        "SCMI Performance 4.0 functional contract",
+        "SCMI Clock 3.0 functional subset",
+        "SCMI Sensor 3.1 with i.MX952 TEMP_ANA/TEMP_A55 access separation",
+        "NXP LMM 1.1 functional lifecycle and notification permission separation",
+        "NXP CPU protocol M7 lifecycle subset",
+        "tests/platforms/NXP_IMX952_FULL_EQUIVALENCE.robot"
+      ],
+      "missing_gates": [
+        "complete_clock_permission_inventory",
+        "complete_pinctrl_resource_and_permission_model",
+        "nxp_bbm_protocol",
+        "nxp_misc_protocol",
+        "p2a_notification_channels",
+        "priority_notification_channel",
+        "fault_reactions",
+        "production_firmware_differential",
+        "physical_board_differential"
+      ]
     },
     "gic_its_msi": {
       "current_level": "NOT_MODELED",
