@@ -113,8 +113,9 @@ Clock Attributes Mark Unassigned Clocks Restricted
     ${allowed_status}=    Read Dword    ${AP_S_PAYLOAD}
     ${allowed_attrs}=     Read Dword    ${AP_S_RESPONSE1}
     ${allowed_name0}=     Read Dword    0x445B1024
+    ${allowed_restricted}=    Evaluate    int(${allowed_attrs}) & 0x2
     Should Be Equal As Numbers    ${allowed_status}    0
-    Should Be Equal As Numbers    ${allowed_attrs} & 0x2    0
+    Should Be Equal As Numbers    ${allowed_restricted}    0
     Should Be Equal As Numbers    ${allowed_name0}    0x504D5241
 
     # AP-S clock 52 remains globally addressable but is marked restricted.
@@ -122,8 +123,9 @@ Clock Attributes Mark Unassigned Clocks Restricted
     Call AP S      0x00005003
     ${restricted_status}=    Read Dword    ${AP_S_PAYLOAD}
     ${restricted_attrs}=     Read Dword    ${AP_S_RESPONSE1}
+    ${restricted_bit}=       Evaluate    int(${restricted_attrs}) & 0x2
     Should Be Equal As Numbers    ${restricted_status}    0
-    Should Be Equal As Numbers    ${restricted_attrs} & 0x2    0x2
+    Should Be Equal As Numbers    ${restricted_bit}    0x2
 
 Unauthorized Clock Rate Mutation Is Denied Without State Change
     Create Full Candidate
