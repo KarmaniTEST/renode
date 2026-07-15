@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "target": "i.MX952 EVK",
+  "source": {
+    "repository": "nxp-imx/imx-sm",
+    "commit": "44f76dcb32945a60e08ea0133700b820349efbd3",
+    "generated_config": "configs/mx952evk/config_scmi.h",
+    "protocol_contract": "sm/rpc/scmi/proto.md",
+    "performance_domain_header": "devices/MIMX952/sm/dev_sm_perf.h"
+  },
+  "agents": [
+    {
+      "id": 0,
+      "name": "M7",
+      "scmi_instance": 0,
+      "domain_id": 4,
+      "secure": false,
+      "performance_domains": [2]
+    },
+    {
+      "id": 1,
+      "name": "AP-S",
+      "scmi_instance": 1,
+      "domain_id": 3,
+      "secure": true,
+      "performance_domains": [3, 7]
+    },
+    {
+      "id": 2,
+      "name": "AP-NS",
+      "scmi_instance": 1,
+      "domain_id": 3,
+      "secure": false,
+      "performance_domains": [3, 5, 7, 8, 9, 10, 11]
+    }
+  ],
+  "performance_domains": [
+    {"id": 0, "name": "M33"},
+    {"id": 1, "name": "WAKEUP"},
+    {"id": 2, "name": "M7"},
+    {"id": 3, "name": "DRAM"},
+    {"id": 4, "name": "HSIO"},
+    {"id": 5, "name": "NPU"},
+    {"id": 6, "name": "NOC"},
+    {"id": 7, "name": "A55"},
+    {"id": 8, "name": "GPU"},
+    {"id": 9, "name": "VPU"},
+    {"id": 10, "name": "CAM"},
+    {"id": 11, "name": "DISP"}
+  ],
+  "performance_levels": [
+    {"id": 0, "name": "PRK"},
+    {"id": 1, "name": "LOW"},
+    {"id": 2, "name": "NOM"},
+    {"id": 3, "name": "ODV"}
+  ],
+  "linux_visible_protocols": [
+    {"id": "0x11", "name": "POWER"},
+    {"id": "0x12", "name": "SYSTEM_POWER"},
+    {"id": "0x13", "name": "PERFORMANCE"},
+    {"id": "0x14", "name": "CLOCK"},
+    {"id": "0x15", "name": "SENSOR"},
+    {"id": "0x19", "name": "PINCTRL"},
+    {"id": "0x80", "name": "NXP_LMM"},
+    {"id": "0x81", "name": "NXP_BBM"},
+    {"id": "0x82", "name": "NXP_CPU"},
+    {"id": "0x84", "name": "NXP_MISC"}
+  ],
+  "known_protocol_versions": {
+    "0x12": "0x00020001",
+    "0x13": "0x00040000"
+  },
+  "model_refactor_requirements": [
+    "Represent SCMI agent identity explicitly instead of treating all A55 channels as one generic agent.",
+    "Apply agent-specific permissions before returning domain/resource attributes or accepting state changes.",
+    "Separate A2P request channels from P2A notification/priority channels.",
+    "Use source-derived domain IDs and names instead of synthetic sequential names.",
+    "Advertise a protocol through Base discovery only when its mandatory contract is implemented for that agent.",
+    "Keep protocol behavior and permissions traceable to the pinned generated configuration."
+  ]
+}
