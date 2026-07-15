@@ -1,0 +1,168 @@
+// Initial NXP i.MX 952 EVK platform support focused on heterogeneous
+// Cortex-A55 + Cortex-M7 execution.
+//
+// Public hardware layout used by this model:
+// - 4x Cortex-A55 application cluster (CPU0..CPU3)
+// - Cortex-M7 real-time core
+// - GICv3 distributor at 0x48000000
+// - GICv3 redistributor region starting at 0x48060000
+// - 2 GiB EVK DDR window starting at 0x80000000
+// - LPUART1 at 0x44380000
+// - M7 ITCM/DTCM: 256 KiB each
+// - A55 and M7 MU/SCMI address windows
+//
+// Scope limitation:
+// This is initial platform support, not a complete hardware-faithful SoC model.
+// Messaging Unit and SCMI windows are memory-backed placeholders. Boot ROM,
+// ELE/System Manager firmware, clocks/resets, GIC ITS, NETC and boot storage are
+// not yet modeled as functional peripherals.
+
+a55Cluster: CPU.Cluster @ sysbus
+
+// The current NXP i.MX 952 DTS exposes the four Cortex-A55 MPIDR affinity IDs
+// as 0x000, 0x100, 0x200 and 0x300. Cortex-A55 is ARMv8.2-A, so Renode's GICv3
+// integration uses these full affinity-aware cpuId values and interrupt targets.
+a55_0: CPU.ARMv8A @ a55Cluster
+    cpuType: "cortex-a55"
+    cpuId: 0x0
+    genericInterruptController: gic
+
+a55_1: CPU.ARMv8A @ a55Cluster
+    cpuType: "cortex-a55"
+    cpuId: 0x100
+    genericInterruptController: gic
+    init:
+        IsHalted true
+
+a55_2: CPU.ARMv8A @ a55Cluster
+    cpuType: "cortex-a55"
+    cpuId: 0x200
+    genericInterruptController: gic
+    init:
+        IsHalted true
+
+a55_3: CPU.ARMv8A @ a55Cluster
+    cpuType: "cortex-a55"
+    cpuId: 0x300
+    genericInterruptController: gic
+    init:
+        IsHalted true
+
+a55Timer0: Timers.ARM_GenericTimer @ a55_0
+    frequency: 24000000
+    defaultCounterFrequencyRegister: 24000000
+    EL3PhysicalTimerIRQ -> gic#0x0@29
+    EL1PhysicalTimerIRQ -> gic#0x0@30
+    EL1VirtualTimerIRQ -> gic#0x0@27
+    NonSecureEL2PhysicalTimerIRQ -> gic#0x0@26
+    NonSecureEL2VirtualTimerIRQ -> gic#0x0@28
+
+a55Timer1: Timers.ARM_GenericTimer @ a55_1
+    frequency: 24000000
+    defaultCounterFrequencyRegister: 24000000
+    EL3PhysicalTimerIRQ -> gic#0x100@29
+    EL1PhysicalTimerIRQ -> gic#0x100@30
+    EL1VirtualTimerIRQ -> gic#0x100@27
+    NonSecureEL2PhysicalTimerIRQ -> gic#0x100@26
+    NonSecureEL2VirtualTimerIRQ -> gic#0x100@28
+
+a55Timer2: Timers.ARM_GenericTimer @ a55_2
+    frequency: 24000000
+    defaultCounterFrequencyRegister: 24000000
+    EL3PhysicalTimerIRQ -> gic#0x200@29
+    EL1PhysicalTimerIRQ -> gic#0x200@30
+    EL1VirtualTimerIRQ -> gic#0x200@27
+    NonSecureEL2PhysicalTimerIRQ -> gic#0x200@26
+    NonSecureEL2VirtualTimerIRQ -> gic#0x200@28
+
+a55Timer3: Timers.ARM_GenericTimer @ a55_3
+    frequency: 24000000
+    defaultCounterFrequencyRegister: 24000000
+    EL3PhysicalTimerIRQ -> gic#0x300@29
+    EL1PhysicalTimerIRQ -> gic#0x300@30
+    EL1VirtualTimerIRQ -> gic#0x300@27
+    NonSecureEL2PhysicalTimerIRQ -> gic#0x300@26
+    NonSecureEL2VirtualTimerIRQ -> gic#0x300@28
+
+gic: IRQControllers.ARM_GenericInterruptController @ {
+    sysbus new Bus.BusMultiRegistration {
+        address: 0x48000000;
+        size: 0x10000;
+        region: "distributor"
+    };
+    sysbus new IRQControllers.ArmGicRedistributorRegistration {
+        attachedCPU: a55_0;
+        address: 0x48060000
+    };
+    sysbus new IRQControllers.ArmGicRedistributorRegistration {
+        attachedCPU: a55_1;
+        address: 0x48080000
+    };
+    sysbus new IRQControllers.ArmGicRedistributorRegistration {
+        attachedCPU: a55_2;
+        address: 0x480A0000
+    };
+    sysbus new IRQControllers.ArmGicRedistributorRegistration {
+        attachedCPU: a55_3;
+        address: 0x480C0000
+    }
+}
+    architectureVersion: .GICv3
+    supportsTwoSecurityStates: true
+
+// EVK DDR: 0x80000000..0xFFFFFFFF (2 GiB).
+ddr: Memory.MappedMemory @ sysbus 0x80000000
+    size: 0x80000000
+
+// SoC SRAM1 from the current NXP i.MX 952 DTSI.
+sram1: Memory.MappedMemory @ sysbus 0x204C0000
+    size: 0x00018000
+
+// EVK stdout-path is LPUART1. Linux GIC SPI 19 maps to interrupt ID 51.
+lpuart1: UART.NXP_LPUART @ sysbus 0x44380000
+    IRQ -> gic@51
+
+// Cortex-M7 execution domain, 800 MHz in the current public M7 DTS.
+m7: CPU.CortexM @ sysbus
+    cpuType: "cortex-m7"
+    nvic: m7Nvic
+    numberOfMPURegions: 16
+
+m7Nvic: IRQControllers.NVIC @ sysbus new Bus.BusPointRegistration {
+    address: 0xE000E000;
+    cpu: m7
+}
+    systickFrequency: 800000000
+    IRQ -> m7@0
+
+// Current public i.MX 952 M7 memory description.
+m7Itcm: Memory.MappedMemory @ sysbus 0x00000000
+    size: 0x00040000
+
+m7Dtcm: Memory.MappedMemory @ sysbus 0x20000000
+    size: 0x00040000
+
+// A55-side MU7 from the NXP Linux DTSI. Functional MU behavior is future work.
+a55Mu7Stub: Memory.MappedMemory @ sysbus 0x42050000
+    size: 0x00010000
+
+// A55 System Manager transport from the NXP Linux DTSI. MU2 is followed by a
+// 1 KiB SRAM containing two 128-byte SCMI shared-memory sections.
+a55Mu2Stub: Memory.MappedMemory @ sysbus 0x445B0000
+    size: 0x00001000
+
+a55ScmiSram: Memory.MappedMemory @ sysbus 0x445B1000
+    size: 0x00000400
+
+// M7-side MU5 and SCMI shared-memory windows from the current Zephyr i.MX 952
+// M7 device tree.
+m7Mu5Stub: Memory.MappedMemory @ sysbus 0x44610000
+    size: 0x00001000
+
+m7ScmiShmem: Memory.MappedMemory @ sysbus 0x44611000
+    size: 0x00000080
+
+// Additional M7-side MU7 window. It is disabled by default in the public DTS,
+// but the address is represented so firmware accesses are retained.
+m7Mu7Stub: Memory.MappedMemory @ sysbus 0x42440000
+    size: 0x00001000
