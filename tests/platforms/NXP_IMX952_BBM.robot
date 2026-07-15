@@ -42,14 +42,14 @@ Call M7
 *** Test Cases ***
 BBM Is Advertised Only To Agents With Source Permissions
     Create Full Candidate
-    # AP-NS has 8 non-base protocols after adding BBM.
+    # AP-NS has 9 non-base protocols after MISC is layered above BBM.
     Call AP NS    0x00004001
     ${ap_ns_status}=    Read Dword    ${AP_NS_PAYLOAD}
     ${ap_ns_attrs}=     Read Dword    ${AP_NS_RESPONSE1}
     Should Be Equal As Numbers    ${ap_ns_status}    0
-    Should Be Equal As Numbers    ${ap_ns_attrs}     0x00000308
+    Should Be Equal As Numbers    ${ap_ns_attrs}     0x00000309
 
-    # M7 has 9 non-base protocols after adding BBM.
+    # M7 has 9 non-base protocols; first-slice MISC is not advertised to M7.
     Call M7    0x00004001
     ${m7_status}=    Read Dword    ${M7_PAYLOAD}
     ${m7_attrs}=     Read Dword    ${M7_RESPONSE1}
