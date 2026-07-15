@@ -85,8 +85,8 @@ if request.IsWrite and request.Offset == 0x114:
             _clock_index += 1
 
         # Prevent lower layers from processing Clock requests. The original
-        # header is restored after the layered model has processed its lower
-        # protocols, then this layer emits the authoritative Clock response.
+        # header and payload are restored after the layered model has processed
+        # lower protocols, then this layer emits the authoritative response.
         if ((_CLOCK_PRE_HEADER >> 10) & 0xFF) == _CLOCK_PROTOCOL:
             _write32(_clock_base + 0x18, (0xFF << 10) | (_CLOCK_PRE_HEADER & 0x3FF))
 
@@ -112,11 +112,26 @@ def _clock_restore_header(channel):
     _write32(base + SMT_MESSAGE_HEADER, _CLOCK_PRE_HEADER)
 
 
+def _clock_restore_payload(channel, words):
+    base = SCMI_SRAM + channel * SCMI_CHANNEL_SIZE
+    index = 0
+    while index < len(words):
+        _write32(base + SMT_PAYLOAD + index * 4, words[index])
+        index += 1
+
+
 def _clock_set_name(channel, clock_id):
     if clock_id not in _CLOCK_SOURCE_NAMES:
         return
     base = SCMI_SRAM + channel * SCMI_CHANNEL_SIZE
     _write_ascii(base + SMT_PAYLOAD + 8, _CLOCK_SOURCE_NAMES[clock_id], 16)
+
+
+def _clock_delegate(channel, agent_id, message_id, words):
+    # The lower masked-protocol response overwrites SMT payload word 0. Restore
+    # the complete captured request before reusing the core Clock handlers.
+    _clock_restore_payload(channel, words)
+    _process_clock(channel, message_id, agent_id)
 
 
 def _clock_process_filtered(channel, agent_id, message_id, words):
@@ -134,7 +149,7 @@ def _clock_process_filtered(channel, agent_id, message_id, words):
         if clock_id >= _CLOCK_COUNT:
             _set_response(channel, SCMI_NOT_FOUND, [])
             return
-        _process_clock(channel, message_id, agent_id)
+        _clock_delegate(channel, agent_id, message_id, words)
         attributes = _read32(base + SMT_PAYLOAD + 4)
         if not _clock_allowed(agent_id, clock_id):
             attributes |= _CLOCK_ATTR_RESTRICTED
@@ -162,7 +177,7 @@ def _clock_process_filtered(channel, agent_id, message_id, words):
         elif not _clock_allowed(agent_id, clock_id):
             _set_response(channel, SCMI_DENIED, [])
         else:
-            _process_clock(channel, message_id, agent_id)
+            _clock_delegate(channel, agent_id, message_id, words)
         return
 
     if message_id == 0x07 or message_id == 0x0D:  # CONFIG_SET / PARENT_SET
@@ -172,11 +187,11 @@ def _clock_process_filtered(channel, agent_id, message_id, words):
         elif not _clock_allowed(agent_id, clock_id):
             _set_response(channel, SCMI_DENIED, [])
         else:
-            _process_clock(channel, message_id, agent_id)
+            _clock_delegate(channel, agent_id, message_id, words)
         return
 
     # Read-only operations preserve the core model's global-ID behavior.
-    _process_clock(channel, message_id, agent_id)
+    _clock_delegate(channel, agent_id, message_id, words)
 
 
 if (request.IsWrite and request.Offset == 0x114 and
