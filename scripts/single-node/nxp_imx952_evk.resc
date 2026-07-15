@@ -4,6 +4,10 @@ $name?="nxp-imx952-evk"
 mach create $name
 machine LoadPlatformDescription @platforms/boards/nxp_imx952_evk.repl
 
+# The Cortex-M7 is held in reset until released by the i.MX9 SiP auxiliary-core
+# service, matching the normal heterogeneous boot flow.
+m7 IsHalted true
+
 # i.MX 9 auxiliary-core control is exposed to A-class software through the
 # NXP SiP service at SMC function ID 0xC2000005. U-Boot's bootaux command
 # uses x1 as the operation, x2 as the reset-vector address and x3 as core ID.
