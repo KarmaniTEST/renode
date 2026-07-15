@@ -27,7 +27,7 @@ The goal is a repeatable engineering digital twin for early software development
 From the repository root:
 
 ```bash
-./tools/imx952-digital-twin/run.sh demo
+bash tools/imx952-digital-twin/run.sh demo
 ```
 
 On Windows PowerShell:
@@ -43,15 +43,15 @@ The demo loads deterministic A55 and M7 firmware and prepares the heterogeneous 
 Run the complete i.MX 952 regression suite:
 
 ```bash
-./tools/imx952-digital-twin/qualify.sh
+bash tools/imx952-digital-twin/qualify.sh
 ```
 
 The script supports three execution modes:
 
 ```bash
-./tools/imx952-digital-twin/qualify.sh auto
-./tools/imx952-digital-twin/qualify.sh local
-./tools/imx952-digital-twin/qualify.sh docker
+bash tools/imx952-digital-twin/qualify.sh auto
+bash tools/imx952-digital-twin/qualify.sh local
+bash tools/imx952-digital-twin/qualify.sh docker
 ```
 
 `auto` uses a locally installed `renode-test` when available and otherwise falls back to the official `antmicro/renode:nightly-dotnet` container.
