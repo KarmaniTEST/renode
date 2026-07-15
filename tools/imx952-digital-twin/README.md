@@ -62,7 +62,7 @@ The qualification target is:
 tests/platforms/NXP_IMX952.robot
 ```
 
-The dedicated GitHub Actions workflow `.github/workflows/imx952-digital-twin.yml` runs the same suite for this branch and for changes touching the i.MX 952 model. Every CI attempt preserves `imx952-qualification.log` as a workflow artifact so failures can be diagnosed and reproduced. The NXP SiP auxiliary-core path uses Renode's current ARMv8 PSCI SMC conduit and reset-macro pattern, matching the framework's maintained U-Boot examples.
+The dedicated GitHub Actions workflow `.github/workflows/imx952-digital-twin.yml` runs the same suite for this branch and for changes touching the i.MX 952 model. Every CI attempt preserves `imx952-qualification.log` as a workflow artifact so failures can be diagnosed and reproduced. The NXP SiP auxiliary-core path uses Renode's current ARMv8 PSCI SMC conduit and reset-macro pattern, with lifecycle state kept in the persistent PSCI Python-engine scope rather than attached dynamically to CPU wrappers.
 
 ## Supported engineering use cases
 
