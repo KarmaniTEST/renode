@@ -1,8 +1,8 @@
 // i.MX952 EVK full-equivalence development platform.
 //
-// This candidate keeps the stable engineering platform unchanged and replaces
-// only the System Manager implementation with the source-derived agent-aware
-// candidate while the remaining physical-equivalence work packages are added.
+// This candidate keeps the stable engineering platform unchanged and uses the
+// source-derived agent-aware System Manager protocol model plus the exact
+// mx952evk SMT channel topology wrapper.
 
 a55Cluster: CPU.Cluster @ sysbus
 
@@ -121,17 +121,19 @@ m7Itcm: Memory.MappedMemory @ sysbus 0x00000000
 m7Dtcm: Memory.MappedMemory @ sysbus 0x20000000
     size: 0x00040000
 
-// A55 endpoint: local channel 0 = AP-S, local channel 1 = AP-NS.
+// AP endpoint mirrors global SMT channels 3/4/5/6 as local 0/1/2/3:
+// AP-S A2P, AP-S P2A notify, AP-NS A2P, AP-NS P2A notify.
 systemManager: Python.PythonPeripheral @ sysbus 0x445B0000
-    size: 0x00001400
+    size: 0x00001200
     initable: true
-    filename: "scripts/pydev/nxp_imx952_system_manager_full.py"
+    filename: "scripts/pydev/nxp_imx952_system_manager_transport.py"
 
-// M7 endpoint: local channel 0 = M7 agent.
+// M7 endpoint mirrors global SMT channels 0/1/2 as local 0/1/2:
+// M7 A2P, M7 P2A notify, M7 P2A priority.
 m7SystemManager: Python.PythonPeripheral @ sysbus 0x44610000
-    size: 0x00001080
+    size: 0x00001180
     initable: true
-    filename: "scripts/pydev/nxp_imx952_system_manager_full.py"
+    filename: "scripts/pydev/nxp_imx952_system_manager_transport.py"
 
 ele: Python.PythonPeripheral @ sysbus 0x47550000
     size: 0x00010000
