@@ -62,7 +62,7 @@ The qualification target is:
 tests/platforms/NXP_IMX952.robot
 ```
 
-The dedicated GitHub Actions workflow `.github/workflows/imx952-digital-twin.yml` runs the same suite for this branch and for changes touching the i.MX 952 model.
+The dedicated GitHub Actions workflow `.github/workflows/imx952-digital-twin.yml` runs the same suite for this branch and for changes touching the i.MX 952 model. Every CI attempt preserves `imx952-qualification.log` as a workflow artifact so failures can be diagnosed and reproduced.
 
 ## Supported engineering use cases
 
