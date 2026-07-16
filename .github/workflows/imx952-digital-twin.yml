@@ -10,7 +10,7 @@ on:
       - "platforms/boards/nxp_imx952_evk.repl"
       - "scripts/pydev/nxp_imx952_*.py"
       - "scripts/single-node/nxp_imx952_*.resc"
-      - "tests/platforms/NXP_IMX952.robot"
+      - "tests/platforms/NXP_IMX952*.robot"
       - "tests/platforms/NXP_IMX952/**"
       - "tools/imx952-digital-twin/**"
       - ".github/workflows/imx952-digital-twin.yml"
@@ -19,13 +19,20 @@ on:
       - "platforms/boards/nxp_imx952_evk.repl"
       - "scripts/pydev/nxp_imx952_*.py"
       - "scripts/single-node/nxp_imx952_*.resc"
-      - "tests/platforms/NXP_IMX952.robot"
+      - "tests/platforms/NXP_IMX952*.robot"
       - "tests/platforms/NXP_IMX952/**"
       - "tools/imx952-digital-twin/**"
       - ".github/workflows/imx952-digital-twin.yml"
 
 permissions:
   contents: read
+
+concurrency:
+  group: imx952-digital-twin-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RENODE_IMAGE: antmicro/renode:nightly-dotnet
 
 jobs:
   qualify:
@@ -37,10 +44,30 @@ jobs:
       - name: Checkout candidate
         uses: actions/checkout@v4
 
-      - name: Pull official Renode nightly runtime
-        run: docker pull antmicro/renode:nightly-dotnet
+      - name: Pull and identify official Renode runtime
+        run: |
+          docker pull "${RENODE_IMAGE}"
+          docker image inspect "${RENODE_IMAGE}" --format 'Runtime image ID: {{.Id}}'
 
-      - name: Run i.MX952 regression suite
+      - name: Validate deterministic Intel HEX fixtures
+        shell: python
+        run: |
+          from pathlib import Path
+
+          fixtures = sorted(Path("tests/platforms/NXP_IMX952").glob("*.hex"))
+          if not fixtures:
+              raise SystemExit("No i.MX952 HEX fixtures found")
+
+          for path in fixtures:
+              for line_number, line in enumerate(path.read_text().splitlines(), 1):
+                  if not line.startswith(":"):
+                      raise SystemExit(f"{path}:{line_number}: invalid Intel HEX record")
+                  record = bytes.fromhex(line[1:])
+                  if sum(record) & 0xFF:
+                      raise SystemExit(f"{path}:{line_number}: checksum mismatch")
+              print(f"Validated {path}")
+
+      - name: Run i.MX952 regression suites
         shell: bash
         run: |
           set +e
@@ -50,8 +77,10 @@ jobs:
             -v "$PWD/scripts/pydev/nxp_imx952_ele.py:/opt/renode/scripts/pydev/nxp_imx952_ele.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_lpi2c7.py:/opt/renode/scripts/pydev/nxp_imx952_lpi2c7.py:ro" \
             -w /workspace \
-            antmicro/renode:nightly-dotnet \
-            renode-test --show-log tests/platforms/NXP_IMX952.robot \
+            "${RENODE_IMAGE}" \
+            renode-test --show-log \
+              tests/platforms/NXP_IMX952.robot \
+              tests/platforms/NXP_IMX952_MU7_Firmware.robot \
             > imx952-qualification.log 2>&1
           status=$?
           echo "Qualification exit status: ${status}"
@@ -59,6 +88,16 @@ jobs:
           tail -n 200 imx952-qualification.log || true
           echo "----- end qualification log tail -----"
           exit "${status}"
+
+      - name: Verify operator entry points
+        if: success()
+        run: |
+          test -f tools/imx952-digital-twin/README.md
+          test -f tools/imx952-digital-twin/run.sh
+          test -f tools/imx952-digital-twin/run.ps1
+          test -f tools/imx952-digital-twin/qualify.sh
+          test -f scripts/single-node/nxp_imx952_evk_heterogeneous_demo.resc
+          test -f tests/platforms/NXP_IMX952_MU7_Firmware.robot
 
       - name: Upload qualification evidence
         if: always()
@@ -69,14 +108,3 @@ jobs:
             imx952-qualification.log
             logs/**/*.log
           if-no-files-found: warn
-
-      - name: Verify operator entry points when present
-        if: success()
-        run: |
-          if test -d tools/imx952-digital-twin; then
-            test -f tools/imx952-digital-twin/README.md
-            test -f tools/imx952-digital-twin/run.sh
-            test -f tools/imx952-digital-twin/run.ps1
-            test -f tools/imx952-digital-twin/qualify.sh
-          fi
-          test -f scripts/single-node/nxp_imx952_evk_heterogeneous_demo.resc
