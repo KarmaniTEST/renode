@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "target": "i.MX952 EVK",
   "source": {
     "repository": "nxp-imx/imx-sm",
@@ -40,20 +40,35 @@
       "FUSA_FEENV_STATE_NOTIFY",
       "FUSA_SEENV_STATE_GET",
       "FUSA_SEENV_STATE_SET",
-      "NEGOTIATE_PROTOCOL_VERSION"
-    ],
-    "not_implemented_commands": [
       "FUSA_FAULT_GET",
       "FUSA_FAULT_SET",
       "FUSA_FAULT_GROUP_NOTIFY",
+      "NEGOTIATE_PROTOCOL_VERSION"
+    ],
+    "not_implemented_commands": [
       "FUSA_SCHECK_EVNTRIG",
       "FUSA_SCHECK_TEST_EXEC"
     ]
   },
   "inventory": {
-    "fault_count": 89,
+    "global_fault_count": 89,
     "seenv_id_count": 1,
-    "seenv_lm_count": 1
+    "seenv_lm_count": 1,
+    "m7_permitted_faults": [
+      {"id": 21, "name": "WDOG5"},
+      {"id": 22, "name": "SW0"},
+      {"id": 23, "name": "SW1"},
+      {"id": 38, "name": "M7_LOCKUP"},
+      {"id": 39, "name": "M7_RESET"}
+    ]
+  },
+  "fault_semantics": {
+    "get": "Return flags bit 0 as the current boolean fault state; deny globally valid faults outside the exact M7 permission set; return NOT_FOUND outside IDs 0..88.",
+    "set": "Use flags[1:0] != 0 as asserted/set and flags[1:0] == 0 as clear, matching the pinned NXP implementation.",
+    "clear_notification": "A successful subscribed clear emits FUSA_FAULT_EVENT with state flag 0.",
+    "recovery_notification": "A subscribed deterministic recovery/set input emits FUSA_FAULT_EVENT with state flag 1.",
+    "group_notify": "Apply a 32-fault window, permission-filter requested bits, and return the effective enabled mask. A mixed permitted/unpermitted request succeeds when at least one permitted fault is updated.",
+    "fault_event_payload": ["fault_id", "state_flag"]
   },
   "priority_transport": {
     "agent": "M7",
@@ -61,25 +76,35 @@
     "global_smt_channel": 2,
     "mu_instance": 0,
     "mu_doorbell": 2,
-    "notification_message_id": 0,
-    "notification_name": "FUSA_FEENV_STATE_EVENT",
     "scmi_message_type": 3,
+    "notification_message_ids": {
+      "FUSA_FEENV_STATE_EVENT": 0,
+      "FUSA_FAULT_EVENT": 2
+    },
     "queue_limit": 8,
-    "busy_channel_policy": "Preserve queued event order and dispatch the next event only after the agent marks SMT channel 2 free."
+    "queue_payload": "message ID plus ordered payload words",
+    "busy_channel_policy": "Preserve mixed state/fault event order and dispatch the next event only after the agent marks SMT channel 2 free."
   },
-  "deterministic_evidence_input": {
-    "offset": "0x1E4",
-    "layout": "Bits[7:0] F-EENV state; Bits[15:8] MSEL mode.",
-    "classification": "Test instrumentation only; not an i.MX952 production register."
+  "deterministic_evidence_inputs": {
+    "feenv_state_trigger": {
+      "offset": "0x1E4",
+      "layout": "Bits[7:0] F-EENV state; Bits[15:8] MSEL mode."
+    },
+    "fault_trigger": {
+      "offset": "0x1F8",
+      "layout": "Bits[7:0] fault ID; Bit[8] resulting state/event flag."
+    },
+    "classification": "Test instrumentation only; neither offset is an i.MX952 production register or physical fault source."
   },
   "qualification_evidence": [
     "scripts/pydev/nxp_imx952_system_manager_fusa.py",
-    "tests/platforms/NXP_IMX952_FUSA_PRIORITY.robot"
+    "tests/platforms/NXP_IMX952_FUSA_PRIORITY.robot",
+    "tests/platforms/NXP_IMX952_FUSA_FAULTS.robot"
   ],
   "qualification_boundary": [
-    "This contract proves a deterministic functional M7 FuSa first slice and priority P2A queue/channel behavior.",
-    "The 89-fault inventory is reported from the pinned device header, but fault get/set/notification behavior is not yet implemented.",
-    "The deterministic F-EENV trigger is test instrumentation and does not claim physical safety-island or fault-source generation.",
-    "MU/NVIC interrupt latency, queue timing, safety reaction timing and physical fault propagation remain hardware-correlation gates."
+    "This contract proves deterministic functional M7 FuSa state and source-permitted fault command behavior plus ordered priority P2A delivery.",
+    "The global 89-fault inventory is preserved while mutation, get and notification configuration are restricted to the exact five M7-permitted faults.",
+    "The deterministic triggers are test instrumentation and do not claim FCCU, safety-island or physical fault-source generation.",
+    "Physical fault detection, escalation, recovery outcomes, reset reactions, MU/NVIC latency, queue timing, safety reaction timing and propagation remain hardware-correlation gates."
   ]
 }
