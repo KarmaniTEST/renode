@@ -6,6 +6,7 @@ on:
     branches:
       - imx952-a55-m7-support
       - imx952-digital-twin-ready
+      - imx952-digital-twin-qualified-engineering-v2
     paths:
       - "platforms/boards/nxp_imx952_evk.repl"
       - "scripts/pydev/nxp_imx952_*.py"
@@ -97,7 +98,10 @@ jobs:
           test -f tools/imx952-digital-twin/run.ps1
           test -f tools/imx952-digital-twin/qualify.sh
           test -f scripts/single-node/nxp_imx952_evk_heterogeneous_demo.resc
+          test -f scripts/single-node/nxp_imx952_evk_mu7_firmware_demo.resc
           test -f tests/platforms/NXP_IMX952_MU7_Firmware.robot
+          test -f tests/platforms/NXP_IMX952/a55_mu7_firmware.hex
+          test -f tests/platforms/NXP_IMX952/m7_mu7_firmware.hex
 
       - name: Upload qualification evidence
         if: always()
