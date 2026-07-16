@@ -3,7 +3,7 @@
 
 This is a structural qualification gate. It does not prove physical equivalence; it
 prevents accidental drift between executable model layers and source-derived
-contracts, including the generated per-agent i.MX952 clock permission map.
+contracts, including generated per-agent Clock and Pinctrl permission maps.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import argparse
 import ast
 import json
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Set
 
 ROOT = Path(__file__).resolve().parent
 PYDEV = ROOT.parents[2] / "scripts" / "pydev"
@@ -21,8 +21,10 @@ DEFAULT_MODEL = PYDEV / "nxp_imx952_system_manager_full.py"
 DEFAULT_BBM_MODEL = PYDEV / "nxp_imx952_system_manager_bbm.py"
 DEFAULT_MISC_MODEL = PYDEV / "nxp_imx952_system_manager_misc.py"
 DEFAULT_CLOCK_MODEL = PYDEV / "nxp_imx952_system_manager_clock.py"
+DEFAULT_PINCTRL_MODEL = PYDEV / "nxp_imx952_system_manager_pinctrl.py"
 DEFAULT_CONTRACT = CONTRACTS / "imx952_system_manager_contract.json"
 DEFAULT_CLOCK_CONTRACT = CONTRACTS / "imx952_clock_permissions.generated.json"
+DEFAULT_PINCTRL_CONTRACT = CONTRACTS / "imx952_pinctrl_permissions.contract.json"
 
 PROTOCOL_CONSTANTS = {
     "0x10": "SCMI_PROTOCOL_BASE",
@@ -44,6 +46,7 @@ VERSION_CONSTANTS = {
     "0x13": "SCMI_PERF_VERSION",
     "0x14": "SCMI_CLOCK_VERSION",
     "0x15": "SCMI_SENSOR_VERSION",
+    "0x19": "_PINCTRL_VERSION",
     "0x80": "SCMI_NXP_LMM_VERSION",
     "0x81": "_BBM_VERSION",
     "0x84": "_MISC_VERSION",
@@ -51,7 +54,14 @@ VERSION_CONSTANTS = {
 
 EXPECTED_CLOCK_COUNTS = {"0": 5, "1": 9, "2": 92}
 EXPECTED_CLOCK_HEADER_SHA256 = "c3b6289c5263bc208f7942055516592177c0c31fcf876da9d1b9f720ffd7aa9f"
+EXPECTED_PINCTRL_PIN_COUNTS = {"0": 2, "1": 0, "2": 131}
+EXPECTED_PINCTRL_DAISY_COUNTS = {"0": 7, "1": 0, "2": 125}
+EXPECTED_PIN_HEADER_SHA256 = "aab6757a0706dc73151819b66969af3208941a6edb6f159b348c30dc605aba51"
 EXPECTED_SCMI_CONFIG_SHA256 = "608e103fa601f33825d1c669c4aeb70e77d7fe9ae86a0fd46326e87b183e68d4"
+EXPECTED_M7_PINS = {18, 19}
+EXPECTED_M7_DAISIES = {0, 69, 70, 71, 72, 73, 74}
+EXPECTED_APNS_PIN_EXCLUDE = {18, 19, 123, 124, 129, 130, 133, 138, 139}
+EXPECTED_APNS_DAISY_EXCLUDE = {0, 69, 70, 71, 72, 73, 74, 102, 103, 104}
 
 
 def integer_assignments(path: Path) -> Dict[str, int]:
@@ -66,6 +76,43 @@ def integer_assignments(path: Path) -> Dict[str, int]:
         value = node.value
         if isinstance(value, ast.Constant) and isinstance(value.value, int):
             result[target.id] = value.value
+    return result
+
+
+def integer_set_assignments(path: Path) -> Dict[str, Set[int]]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    result: Dict[str, Set[int]] = {}
+    for node in tree.body:
+        if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+            continue
+        target = node.targets[0]
+        if not isinstance(target, ast.Name):
+            continue
+
+        value = node.value
+        elements = None
+        if isinstance(value, (ast.List, ast.Tuple, ast.Set)):
+            elements = value.elts
+        elif (
+            isinstance(value, ast.Call)
+            and isinstance(value.func, ast.Name)
+            and value.func.id == "set"
+            and len(value.args) == 1
+            and isinstance(value.args[0], (ast.List, ast.Tuple, ast.Set))
+        ):
+            elements = value.args[0].elts
+
+        if elements is None:
+            continue
+        parsed: Set[int] = set()
+        valid = True
+        for element in elements:
+            if not isinstance(element, ast.Constant) or not isinstance(element.value, int):
+                valid = False
+                break
+            parsed.add(element.value)
+        if valid:
+            result[target.id] = parsed
     return result
 
 
@@ -133,21 +180,135 @@ def validate_clock_contract(
         errors.append("Clock policy layer permission bitmap differs from state|parent|rate contract")
 
 
+def validate_pinctrl_contract(
+    contract: dict,
+    pinctrl_contract: dict,
+    constants: Dict[str, int],
+    pinctrl_sets: Dict[str, Set[int]],
+    errors: List[str],
+) -> None:
+    if pinctrl_contract.get("global_pin_count") != 140:
+        errors.append("Pinctrl contract must contain the global 140-pin i.MX952 inventory")
+    if pinctrl_contract.get("global_daisy_count") != 135:
+        errors.append("Pinctrl contract must contain the global 135-daisy i.MX952 inventory")
+
+    pinctrl_source = pinctrl_contract.get("source", {})
+    if pinctrl_source.get("pin_header_sha256") != EXPECTED_PIN_HEADER_SHA256:
+        errors.append("Pinctrl contract pin-header SHA-256 does not match pinned NXP source")
+    if pinctrl_source.get("generated_config_sha256") != EXPECTED_SCMI_CONFIG_SHA256:
+        errors.append("Pinctrl contract SCMI-config SHA-256 does not match pinned NXP source")
+
+    agents = pinctrl_contract.get("agents", {})
+    pin_counts = {
+        agent_id: int(agent_data.get("pin_count", -1))
+        for agent_id, agent_data in agents.items()
+    }
+    daisy_counts = {
+        agent_id: int(agent_data.get("daisy_count", -1))
+        for agent_id, agent_data in agents.items()
+    }
+    if pin_counts != EXPECTED_PINCTRL_PIN_COUNTS:
+        errors.append(f"Pinctrl pin counts {pin_counts} do not match pinned 2/0/131 map")
+    if daisy_counts != EXPECTED_PINCTRL_DAISY_COUNTS:
+        errors.append(f"Pinctrl daisy counts {daisy_counts} do not match pinned 7/0/125 map")
+
+    if set(agents.get("0", {}).get("pin_ids", [])) != EXPECTED_M7_PINS:
+        errors.append("Pinctrl M7 pin IDs do not match pinned GPIO_IO14/GPIO_IO15 permissions")
+    if set(agents.get("0", {}).get("daisy_ids", [])) != EXPECTED_M7_DAISIES:
+        errors.append("Pinctrl M7 daisy IDs do not match pinned CAN1/LPTMR2/LPUART3 permissions")
+    if agents.get("1", {}).get("pin_ids") != [] or agents.get("1", {}).get("daisy_ids") != []:
+        errors.append("Pinctrl AP-S contract must have no pin or daisy mutation permissions")
+
+    apns = agents.get("2", {})
+    pin_rule = apns.get("pin_rule", {})
+    daisy_rule = apns.get("daisy_rule", {})
+    if (
+        pin_rule.get("range_start") != 0
+        or pin_rule.get("range_end_inclusive") != 139
+        or set(pin_rule.get("exclude", [])) != EXPECTED_APNS_PIN_EXCLUDE
+    ):
+        errors.append("Pinctrl AP-NS pin rule differs from pinned source-derived projection")
+    if (
+        daisy_rule.get("range_start") != 0
+        or daisy_rule.get("range_end_inclusive") != 134
+        or set(daisy_rule.get("exclude", [])) != EXPECTED_APNS_DAISY_EXCLUDE
+    ):
+        errors.append("Pinctrl AP-NS daisy rule differs from pinned source-derived projection")
+
+    main_pinctrl = contract.get("pinctrl_permissions", {})
+    if main_pinctrl.get("global_pin_count") != 140:
+        errors.append("System Manager contract must preserve the global 140-pin ID space")
+    if main_pinctrl.get("global_daisy_count") != 135:
+        errors.append("System Manager contract must preserve the global 135-daisy ID space")
+    if main_pinctrl.get("agent_pin_counts") != EXPECTED_PINCTRL_PIN_COUNTS:
+        errors.append("System Manager contract Pinctrl pin counts do not match 2/0/131")
+    if main_pinctrl.get("agent_daisy_counts") != EXPECTED_PINCTRL_DAISY_COUNTS:
+        errors.append("System Manager contract Pinctrl daisy counts do not match 7/0/125")
+
+    source_hashes = main_pinctrl.get("source_hashes", {})
+    if source_hashes.get("devices/MIMX952/sm/dev_sm_pin.h") != EXPECTED_PIN_HEADER_SHA256:
+        errors.append("System Manager contract Pinctrl pin-header hash differs from compact contract")
+    if source_hashes.get("configs/mx952evk/config_scmi.h") != EXPECTED_SCMI_CONFIG_SHA256:
+        errors.append("System Manager contract Pinctrl SCMI-config hash differs from compact contract")
+
+    contract_pin_counts = {
+        str(agent.get("id")): agent.get("pinctrl_pin_permission_count")
+        for agent in contract.get("agents", [])
+    }
+    contract_daisy_counts = {
+        str(agent.get("id")): agent.get("pinctrl_daisy_permission_count")
+        for agent in contract.get("agents", [])
+    }
+    if contract_pin_counts != EXPECTED_PINCTRL_PIN_COUNTS:
+        errors.append(
+            f"System Manager agent Pinctrl pin counts {contract_pin_counts} do not match 2/0/131"
+        )
+    if contract_daisy_counts != EXPECTED_PINCTRL_DAISY_COUNTS:
+        errors.append(
+            f"System Manager agent Pinctrl daisy counts {contract_daisy_counts} do not match 7/0/125"
+        )
+
+    if constants.get("_PINCTRL_PROTOCOL") != 0x19:
+        errors.append("Pinctrl policy layer protocol ID is not SCMI Pinctrl 0x19")
+    if constants.get("_PINCTRL_VERSION") != 0x00010000:
+        errors.append("Pinctrl policy layer version is not the pinned NXP 1.0 contract")
+    if constants.get("_PIN_COUNT") != 140 or constants.get("_DAISY_COUNT") != 135:
+        errors.append("Pinctrl policy layer inventory does not preserve 140 pins and 135 daisies")
+
+    if pinctrl_sets.get("_M7_PIN_IDS") != EXPECTED_M7_PINS:
+        errors.append("Pinctrl executable M7 pin set differs from compact contract")
+    if pinctrl_sets.get("_M7_DAISY_IDS") != EXPECTED_M7_DAISIES:
+        errors.append("Pinctrl executable M7 daisy set differs from compact contract")
+    if pinctrl_sets.get("_APNS_PIN_EXCLUDE") != EXPECTED_APNS_PIN_EXCLUDE:
+        errors.append("Pinctrl executable AP-NS pin exclusions differ from compact contract")
+    if pinctrl_sets.get("_APNS_DAISY_EXCLUDE") != EXPECTED_APNS_DAISY_EXCLUDE:
+        errors.append("Pinctrl executable AP-NS daisy exclusions differ from compact contract")
+
+
 def main(argv: List[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=Path, default=DEFAULT_MODEL)
     parser.add_argument("--bbm-model", type=Path, default=DEFAULT_BBM_MODEL)
     parser.add_argument("--misc-model", type=Path, default=DEFAULT_MISC_MODEL)
     parser.add_argument("--clock-model", type=Path, default=DEFAULT_CLOCK_MODEL)
+    parser.add_argument("--pinctrl-model", type=Path, default=DEFAULT_PINCTRL_MODEL)
     parser.add_argument("--contract", type=Path, default=DEFAULT_CONTRACT)
     parser.add_argument("--clock-contract", type=Path, default=DEFAULT_CLOCK_CONTRACT)
+    parser.add_argument("--pinctrl-contract", type=Path, default=DEFAULT_PINCTRL_CONTRACT)
     args = parser.parse_args(argv)
 
     contract = json.loads(args.contract.read_text(encoding="utf-8"))
     clock_contract = json.loads(args.clock_contract.read_text(encoding="utf-8"))
-    constants = merged_assignments(
-        [args.model, args.bbm_model, args.misc_model, args.clock_model]
-    )
+    pinctrl_contract = json.loads(args.pinctrl_contract.read_text(encoding="utf-8"))
+    model_paths = [
+        args.model,
+        args.bbm_model,
+        args.misc_model,
+        args.clock_model,
+        args.pinctrl_model,
+    ]
+    constants = merged_assignments(model_paths)
+    pinctrl_sets = integer_set_assignments(args.pinctrl_model)
     errors: List[str] = []
 
     implemented = set(contract.get("candidate_implemented_protocols", []))
@@ -197,6 +358,10 @@ def main(argv: List[str] | None = None) -> int:
 
     if "0x14" in implemented:
         validate_clock_contract(contract, clock_contract, constants, errors)
+    if "0x19" in implemented:
+        validate_pinctrl_contract(
+            contract, pinctrl_contract, constants, pinctrl_sets, errors
+        )
 
     bbm_contract = contract.get("bbm_resources", {})
     if "0x81" in implemented:
@@ -222,16 +387,20 @@ def main(argv: List[str] | None = None) -> int:
 
     result = {
         "verdict": "PASS" if not errors else "FAIL",
-        "models": [
-            str(args.model),
-            str(args.bbm_model),
-            str(args.misc_model),
-            str(args.clock_model),
-        ],
+        "models": [str(path) for path in model_paths],
         "contract": str(args.contract),
         "clock_contract": str(args.clock_contract),
+        "pinctrl_contract": str(args.pinctrl_contract),
         "implemented_protocols": sorted(implemented),
         "clock_permission_counts": normalize_agent_counts(clock_contract),
+        "pinctrl_pin_counts": {
+            key: data.get("pin_count")
+            for key, data in pinctrl_contract.get("agents", {}).items()
+        },
+        "pinctrl_daisy_counts": {
+            key: data.get("daisy_count")
+            for key, data in pinctrl_contract.get("agents", {}).items()
+        },
         "errors": errors,
     }
     print(json.dumps(result, indent=2, sort_keys=True))
