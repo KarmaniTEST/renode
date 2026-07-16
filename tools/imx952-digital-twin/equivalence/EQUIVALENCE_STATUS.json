@@ -1,5 +1,5 @@
 {
-  "schema_version": 9,
+  "schema_version": 10,
   "target": "i.MX952 EVK B0",
   "policy": "A subsystem may be promoted only when every required gate has reproducible evidence against the pinned physical reference.",
   "levels": [
@@ -38,8 +38,11 @@
         "SCMI Clock 3.0 global 198-clock ID space with exact generated M7/AP-S/AP-NS permission maps and mutation enforcement",
         "SCMI Pinctrl 1.0 global 140-pin/135-daisy inventory with exact generated M7/AP-S/AP-NS permission maps and functional state enforcement",
         "SCMI Sensor 3.1 with i.MX952 TEMP_ANA/TEMP_A55 access separation",
-        "M7-only SCMI FuSa 1.0 first slice with source-derived 89-fault/one-S-EENV inventory and state/subscription behavior",
-        "functional ordered FuSa F-EENV state notifications through M7 priority SMT channel 2 and MU doorbell 2",
+        "M7-only SCMI FuSa 1.0 with global 89-fault inventory and exact source-permitted faults WDOG5/SW0/SW1/M7_LOCKUP/M7_RESET",
+        "FuSa F-EENV and S-EENV state/get/set/notify behavior",
+        "FuSa FAULT_GET, FAULT_SET and 32-fault-window FAULT_GROUP_NOTIFY behavior with exact permission enforcement",
+        "functional ordered FuSa state and fault notifications through M7 priority SMT channel 2 and MU doorbell 2",
+        "FuSa fault-event message ID 2 with deterministic set/recovery and command-generated clear evidence",
         "NXP LMM 1.1 functional lifecycle and notification permission separation",
         "exact seven-channel mx952evk SMT topology",
         "functional M7-to-AP-NS LMM normal P2A notification delivery with modeled GSR pending state",
@@ -60,6 +63,7 @@
         "tools/imx952-digital-twin/equivalence/contracts/imx952_bbm_contract.json",
         "tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json",
         "tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_misc_overlay.json",
+        "tools/imx952-digital-twin/equivalence/check_fusa_contract.py",
         "tools/imx952-digital-twin/equivalence/check_bbm_notification_contract.py",
         "tools/imx952-digital-twin/equivalence/check_misc_contract.py",
         "tools/imx952-digital-twin/equivalence/check_system_manager_misc_overlay.py",
@@ -69,7 +73,9 @@
         "tests/platforms/NXP_IMX952_MISC.robot",
         "tests/platforms/NXP_IMX952_CLOCK_PERMISSIONS.robot",
         "tests/platforms/NXP_IMX952_PINCTRL_PERMISSIONS.robot",
-        "tests/platforms/NXP_IMX952_FUSA_PRIORITY.robot"
+        "tests/platforms/NXP_IMX952_FUSA_PRIORITY.robot",
+        "tests/platforms/NXP_IMX952_FUSA_FAULTS.robot",
+        ".github/workflows/imx952-fusa.yml"
       ],
       "missing_gates": [
         "physical_clock_tree_rate_parent_and_enable_correlation",
@@ -80,8 +86,10 @@
         "misc_physical_wake_button_event_generation_and_latency",
         "misc_test_action_physical_safety_reaction",
         "misc_fuse_rom_passover_syslog_and_physical_reset_semantics",
-        "complete_fusa_fault_get_set_and_notification_model",
-        "production_fault_source_and_safety_reaction_integration",
+        "physical_fccu_safety_island_and_fault_source_generation",
+        "physical_fusa_fault_escalation_recovery_and_reset_reactions",
+        "physical_fusa_priority_queue_and_safety_reaction_timing",
+        "fusa_scheck_event_trigger_and_test_execution",
         "physical_rtc_button_event_source_and_timing_correlation",
         "notification_irq_wiring_and_latency_correlation",
         "production_firmware_differential",
