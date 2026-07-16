@@ -5,8 +5,9 @@
 #
 # The mx952evk configuration grants FuSa access only to the M7 S-EENV agent and
 # assigns local M7 channel 2 (global SMT channel 2 / MU doorbell 2) to priority
-# notifications. This layer implements a bounded functional FuSa first slice and
-# priority queue. Physical fault generation and IRQ latency remain outside scope.
+# notifications. This layer implements the source-permitted functional state and
+# fault-command surface plus a bounded priority queue. Physical FCCU generation,
+# safety reactions and IRQ latency remain outside scope.
 
 _FUSA_PROTOCOL = 0x83
 _FUSA_VERSION = 0x00010000
@@ -27,13 +28,18 @@ _FUSA_SEENV_STATE_TERMINAL = 4
 
 _FUSA_ID_DISCOVER = 0xFFFFFFFF
 _FUSA_NOTIFY_FEENV_STATE_EVENT = 0
+_FUSA_NOTIFY_FAULT_EVENT = 2
 _FUSA_PRIORITY_CHANNEL = 2
 _FUSA_PRIORITY_QUEUE_LIMIT = 8
 
-# Deterministic test/evidence input. Bits[7:0] F-EENV state, Bits[15:8] MSEL.
-# This is not a production hardware register and is kept outside the public SCMI
-# protocol surface.
+# Exact M7 faultPerms projection from pinned mx952evk config_scmi.h.
+_FUSA_M7_FAULT_IDS = set([21, 22, 23, 38, 39])
+
+# Deterministic test/evidence inputs, not production hardware registers.
+# F-EENV trigger: bits[7:0] state, bits[15:8] MSEL.
+# Fault trigger: bits[7:0] fault ID, bit[8] resulting state/event flag.
 _INTERNAL_FUSA_FEENV_TRIGGER = 0x1E4
+_INTERNAL_FUSA_FAULT_TRIGGER = 0x1F8
 
 _FUSA_ORIGINAL_VALUE = request.Value if request.IsWrite else 0
 _FUSA_IS_AP = size >= 0x1400
@@ -93,8 +99,6 @@ def _fusa_restore_request(channel):
 
 
 def _fusa_protocols_for_agent(agent_id):
-    # Preserve all lower-layer source-derived protocols (including BBM and MISC)
-    # before adding the M7-only FuSa surface.
     protocols = list(_misc_protocols_for_agent(agent_id))
     if agent_id == AGENT_M7 and _FUSA_PROTOCOL not in protocols:
         protocols.append(_FUSA_PROTOCOL)
@@ -129,13 +133,87 @@ def _fusa_process_base(channel, message_id, agent_id, words):
     _set_response(channel, SCMI_NOT_SUPPORTED, [])
 
 
+def _fusa_fault_allowed(fault_id):
+    return fault_id in _FUSA_M7_FAULT_IDS
+
+
+def _fusa_process_fault_get(channel, fault_id):
+    if fault_id >= _FUSA_FAULT_COUNT:
+        _set_response(channel, SCMI_NOT_FOUND, [])
+    elif not _fusa_fault_allowed(fault_id):
+        _set_response(channel, SCMI_DENIED, [])
+    else:
+        _set_response(channel, SCMI_SUCCESS,
+                      [1 if fusa_fault_states.get(fault_id, False) else 0])
+
+
+def _fusa_process_fault_set(channel, fault_id, flags):
+    if fault_id >= _FUSA_FAULT_COUNT:
+        _set_response(channel, SCMI_NOT_FOUND, [])
+        return
+    if not _fusa_fault_allowed(fault_id):
+        _set_response(channel, SCMI_DENIED, [])
+        return
+
+    # Match NXP implementation exactly: flags[1:0] != 0 means asserted/set;
+    # zero means clear. A successful clear triggers a fault event with state 0.
+    new_state = (flags & 0x3) != 0
+    fusa_fault_states[fault_id] = new_state
+    _set_response(channel, SCMI_SUCCESS, [])
+    if not new_state:
+        _fusa_queue_fault_event(fault_id, 0)
+
+
+def _fusa_process_fault_group_notify(channel, first, fault_mask, enable_mask):
+    if first >= _FUSA_FAULT_COUNT:
+        _set_response(channel, SCMI_NOT_FOUND, [])
+        return
+
+    found = False
+    denied = False
+    index = 0
+    while index < 32:
+        fault_id = first + index
+        if fault_id >= _FUSA_FAULT_COUNT:
+            break
+        bit = 1 << index
+        if fault_mask & bit:
+            if not _fusa_fault_allowed(fault_id):
+                denied = True
+            else:
+                found = True
+                if enable_mask & bit:
+                    fusa_fault_notify.add(fault_id)
+                else:
+                    fusa_fault_notify.discard(fault_id)
+        index += 1
+
+    enabled = 0
+    index = 0
+    while index < 32:
+        fault_id = first + index
+        if fault_id >= _FUSA_FAULT_COUNT:
+            break
+        if fault_id in fusa_fault_notify:
+            enabled |= 1 << index
+        index += 1
+
+    if found:
+        _set_response(channel, SCMI_SUCCESS, [first, enabled])
+    elif denied:
+        _set_response(channel, SCMI_DENIED, [first, enabled])
+    else:
+        _set_response(channel, SCMI_DENIED, [first, enabled])
+
+
 def _fusa_process(channel, message_id, agent_id, words):
     global fusa_seenv_state, fusa_last_ping_cookie
     if agent_id != AGENT_M7:
         _set_response(channel, SCMI_NOT_SUPPORTED, [])
         return
 
-    supported = set([0x00, 0x01, 0x02, 0x03, 0x05, 0x06, 0x07, 0x10])
+    supported = set([0x00, 0x01, 0x02, 0x03, 0x05, 0x06, 0x07,
+                     0x08, 0x09, 0x0A, 0x10])
     if message_id == 0x00:
         _set_response(channel, SCMI_SUCCESS, [_FUSA_VERSION])
     elif message_id == 0x01:
@@ -148,11 +226,8 @@ def _fusa_process(channel, message_id, agent_id, words):
     elif message_id == 0x02:
         _message_attributes(channel, words[0], supported)
     elif message_id == 0x03:
-        _set_response(
-            channel,
-            SCMI_SUCCESS,
-            [fusa_feenv_state, fusa_msel_mode],
-        )
+        _set_response(channel, SCMI_SUCCESS,
+                      [fusa_feenv_state, fusa_msel_mode])
     elif message_id == 0x05:
         fusa_feenv_notify[agent_id] = (words[0] & 0x1) != 0
         _set_response(channel, SCMI_SUCCESS, [])
@@ -161,11 +236,8 @@ def _fusa_process(channel, message_id, agent_id, words):
         if requested not in set([0, _FUSA_ID_DISCOVER]):
             _set_response(channel, SCMI_NOT_FOUND, [])
         else:
-            _set_response(
-                channel,
-                SCMI_SUCCESS,
-                [0, LM_M7, fusa_seenv_state],
-            )
+            _set_response(channel, SCMI_SUCCESS,
+                          [0, LM_M7, fusa_seenv_state])
     elif message_id == 0x07:
         requested_state = words[0]
         if requested_state > _FUSA_SEENV_STATE_TERMINAL:
@@ -174,6 +246,12 @@ def _fusa_process(channel, message_id, agent_id, words):
             fusa_seenv_state = requested_state
             fusa_last_ping_cookie = words[1]
             _set_response(channel, SCMI_SUCCESS, [])
+    elif message_id == 0x08:
+        _fusa_process_fault_get(channel, words[0])
+    elif message_id == 0x09:
+        _fusa_process_fault_set(channel, words[0], words[1])
+    elif message_id == 0x0A:
+        _fusa_process_fault_group_notify(channel, words[0], words[1], words[2])
     elif message_id == 0x10:
         if words[0] <= _FUSA_VERSION:
             _set_response(channel, SCMI_SUCCESS, [])
@@ -210,31 +288,46 @@ def _fusa_try_dispatch_priority():
     if not _fusa_priority_channel_free():
         return False
 
-    state, msel = fusa_priority_queue.pop(0)
+    message_id, words = fusa_priority_queue.pop(0)
     base = _fusa_priority_base()
     _write32(base + SMT_CHANNEL_STATUS, 0)
-    _write32(
-        base + SMT_MESSAGE_HEADER,
-        _fusa_priority_header(_FUSA_NOTIFY_FEENV_STATE_EVENT),
-    )
-    _write32(base + SMT_PAYLOAD, state)
-    _write32(base + SMT_PAYLOAD + 4, msel)
-    _write32(base + SMT_LENGTH, 12)
+    _write32(base + SMT_MESSAGE_HEADER, _fusa_priority_header(message_id))
+    index = 0
+    for word in words:
+        _write32(base + SMT_PAYLOAD + index * 4, word)
+        index += 1
+    _write32(base + SMT_LENGTH, 4 + 4 * len(words))
     _write32(MU_GSR, _read32(MU_GSR) | (1 << _FUSA_PRIORITY_CHANNEL))
     _update_m7_scmi_irq()
     return True
 
 
-def _fusa_queue_feenv_event(state, msel):
+def _fusa_queue_priority(message_id, words):
     global fusa_priority_overflow
-    if not fusa_feenv_notify.get(AGENT_M7, False):
-        return False
     if len(fusa_priority_queue) >= _FUSA_PRIORITY_QUEUE_LIMIT:
         fusa_priority_overflow += 1
         return False
-    fusa_priority_queue.append((state, msel))
+    fusa_priority_queue.append((message_id, list(words)))
     _fusa_try_dispatch_priority()
     return True
+
+
+def _fusa_queue_feenv_event(state, msel):
+    if not fusa_feenv_notify.get(AGENT_M7, False):
+        return False
+    return _fusa_queue_priority(
+        _FUSA_NOTIFY_FEENV_STATE_EVENT,
+        [state, msel],
+    )
+
+
+def _fusa_queue_fault_event(fault_id, state):
+    if fault_id not in fusa_fault_notify:
+        return False
+    return _fusa_queue_priority(
+        _FUSA_NOTIFY_FAULT_EVENT,
+        [fault_id, state & 0x1],
+    )
 
 
 if request.IsInit:
@@ -243,10 +336,15 @@ if request.IsInit:
     fusa_seenv_state = _FUSA_SEENV_STATE_INIT
     fusa_last_ping_cookie = 0
     fusa_feenv_notify = {AGENT_M7: False}
+    fusa_fault_states = {}
+    for _fusa_fault_id in _FUSA_M7_FAULT_IDS:
+        fusa_fault_states[_fusa_fault_id] = False
+    fusa_fault_notify = set()
     fusa_priority_queue = []
     fusa_priority_token = 0
     fusa_priority_overflow = 0
     _write32(_INTERNAL_FUSA_FEENV_TRIGGER, 0)
+    _write32(_INTERNAL_FUSA_FAULT_TRIGGER, 0)
 
 elif (request.IsWrite and request.Offset == 0x114 and
       _FUSA_REQUEST_CHANNEL is not None and _FUSA_INTERCEPT):
@@ -277,6 +375,15 @@ elif (request.IsWrite and not _FUSA_IS_AP and
         fusa_msel_mode = requested_msel
         _fusa_queue_feenv_event(requested_state, requested_msel)
     _write32(_INTERNAL_FUSA_FEENV_TRIGGER, 0)
+
+elif (request.IsWrite and not _FUSA_IS_AP and
+      request.Offset == _INTERNAL_FUSA_FAULT_TRIGGER and request.Length == 4):
+    fault_id = _FUSA_ORIGINAL_VALUE & 0xFF
+    state = (_FUSA_ORIGINAL_VALUE >> 8) & 0x1
+    if fault_id < _FUSA_FAULT_COUNT:
+        fusa_fault_states[fault_id] = state != 0
+        _fusa_queue_fault_event(fault_id, state)
+    _write32(_INTERNAL_FUSA_FAULT_TRIGGER, 0)
 
 elif (request.IsWrite and not _FUSA_IS_AP and
       request.Offset == (_fusa_priority_base() + SMT_CHANNEL_STATUS) and
