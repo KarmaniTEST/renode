@@ -1,0 +1,94 @@
+name: i.MX952 MISC Qualification
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - imx952-full-equivalence-program
+    paths:
+      - "scripts/pydev/nxp_imx952_system_manager_misc.py"
+      - "scripts/pydev/nxp_imx952_system_manager_fusa.py"
+      - "platforms/boards/nxp_imx952_evk_full.repl"
+      - "tests/platforms/NXP_IMX952_MISC.robot"
+      - "tools/imx952-digital-twin/equivalence/check_misc_contract.py"
+      - "tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json"
+      - ".github/workflows/imx952-misc.yml"
+  pull_request:
+    paths:
+      - "scripts/pydev/nxp_imx952_system_manager_misc.py"
+      - "scripts/pydev/nxp_imx952_system_manager_fusa.py"
+      - "platforms/boards/nxp_imx952_evk_full.repl"
+      - "tests/platforms/NXP_IMX952_MISC.robot"
+      - "tools/imx952-digital-twin/equivalence/check_misc_contract.py"
+      - "tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json"
+      - ".github/workflows/imx952-misc.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  qualify-misc:
+    name: Clean MISC functional qualification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v4
+
+      - name: Validate MISC source contract
+        run: |
+          python3 -m json.tool \
+            tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json \
+            >/dev/null
+          python3 \
+            tools/imx952-digital-twin/equivalence/check_misc_contract.py
+
+      - name: Pull official Renode nightly runtime
+        run: docker pull antmicro/renode:nightly-dotnet
+
+      - name: Run complete MISC regression
+        shell: bash
+        run: |
+          set +e
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_full.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_full.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_transport.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_transport.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_bbm.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_bbm.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_misc.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_misc.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_clock.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_clock.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_pinctrl.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_pinctrl.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_fusa.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_fusa.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_ele.py:/opt/renode/scripts/pydev/nxp_imx952_ele.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_lpi2c7.py:/opt/renode/scripts/pydev/nxp_imx952_lpi2c7.py:ro" \
+            -w /workspace \
+            antmicro/renode:nightly-dotnet \
+            renode-test --show-log \
+              tests/platforms/NXP_IMX952_MISC.robot \
+            > imx952-misc.log 2>&1
+          status=$?
+          echo "MISC qualification exit status: ${status}"
+          echo "----- MISC qualification log -----"
+          cat imx952-misc.log || true
+          echo "----- end MISC qualification log -----"
+          exit "${status}"
+
+      - name: Upload MISC evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: imx952-misc-log
+          path: |
+            imx952-misc.log
+            logs/**/*.log
+          if-no-files-found: warn
+
+      - name: Verify MISC entry points
+        if: success()
+        run: |
+          test -f scripts/pydev/nxp_imx952_system_manager_misc.py
+          test -f tests/platforms/NXP_IMX952_MISC.robot
+          test -f tools/imx952-digital-twin/equivalence/check_misc_contract.py
+          test -f tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json
