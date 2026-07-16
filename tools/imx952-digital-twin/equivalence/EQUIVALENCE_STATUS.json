@@ -1,5 +1,5 @@
 {
-  "schema_version": 7,
+  "schema_version": 8,
   "target": "i.MX952 EVK B0",
   "policy": "A subsystem may be promoted only when every required gate has reproducible evidence against the pinned physical reference.",
   "levels": [
@@ -44,13 +44,18 @@
         "exact seven-channel mx952evk SMT topology",
         "functional M7-to-AP-NS LMM normal P2A notification delivery with modeled GSR pending state",
         "NXP BBM 1.0 functional GPR/RTC/button resource and permission model",
+        "source-derived BBM RTC alarm, rollover and update subscriptions plus button-detection subscription",
+        "functional ordered BBM normal P2A delivery through M7 local channel 1 and AP-NS local channel 3 with modeled GSR pending state",
         "NXP MISC 1.1 AP-NS first slice with COMBO_PHY, safe target/config/board metadata, POR reset reason and modeled DDR-region reporting",
         "NXP CPU protocol M7 lifecycle subset",
         "tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.generated.json",
         "tools/imx952-digital-twin/equivalence/contracts/imx952_pinctrl_permissions.contract.json",
         "tools/imx952-digital-twin/equivalence/contracts/imx952_fusa_priority_contract.json",
+        "tools/imx952-digital-twin/equivalence/contracts/imx952_bbm_contract.json",
+        "tools/imx952-digital-twin/equivalence/check_bbm_notification_contract.py",
         "tests/platforms/NXP_IMX952_FULL_EQUIVALENCE.robot",
         "tests/platforms/NXP_IMX952_BBM.robot",
+        "tests/platforms/NXP_IMX952_BBM_NOTIFICATIONS.robot",
         "tests/platforms/NXP_IMX952_MISC.robot",
         "tests/platforms/NXP_IMX952_CLOCK_PERMISSIONS.robot",
         "tests/platforms/NXP_IMX952_PINCTRL_PERMISSIONS.robot",
@@ -62,8 +67,8 @@
         "complete_nxp_misc_control_resource_coverage",
         "complete_fusa_fault_get_set_and_notification_model",
         "production_fault_source_and_safety_reaction_integration",
+        "physical_rtc_button_event_source_and_timing_correlation",
         "notification_irq_wiring_and_latency_correlation",
-        "bbm_notification_delivery",
         "production_firmware_differential",
         "physical_board_differential"
       ]
