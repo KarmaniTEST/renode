@@ -8,6 +8,7 @@ on:
     paths:
       - "scripts/pydev/nxp_imx952_system_manager_misc.py"
       - "scripts/pydev/nxp_imx952_system_manager_fusa.py"
+      - "scripts/pydev/nxp_imx952_system_manager_fusa_scheck.py"
       - "platforms/boards/nxp_imx952_evk_full.repl"
       - "tests/platforms/NXP_IMX952_MISC.robot"
       - "tools/imx952-digital-twin/equivalence/check_misc_contract.py"
@@ -20,6 +21,7 @@ on:
     paths:
       - "scripts/pydev/nxp_imx952_system_manager_misc.py"
       - "scripts/pydev/nxp_imx952_system_manager_fusa.py"
+      - "scripts/pydev/nxp_imx952_system_manager_fusa_scheck.py"
       - "platforms/boards/nxp_imx952_evk_full.repl"
       - "tests/platforms/NXP_IMX952_MISC.robot"
       - "tools/imx952-digital-twin/equivalence/check_misc_contract.py"
@@ -72,6 +74,7 @@ jobs:
             -v "$PWD/scripts/pydev/nxp_imx952_system_manager_clock.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_clock.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_system_manager_pinctrl.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_pinctrl.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_system_manager_fusa.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_fusa.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_fusa_scheck.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_fusa_scheck.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_ele.py:/opt/renode/scripts/pydev/nxp_imx952_ele.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_lpi2c7.py:/opt/renode/scripts/pydev/nxp_imx952_lpi2c7.py:ro" \
             -w /workspace \
@@ -100,6 +103,7 @@ jobs:
         if: success()
         run: |
           test -f scripts/pydev/nxp_imx952_system_manager_misc.py
+          test -f scripts/pydev/nxp_imx952_system_manager_fusa_scheck.py
           test -f tests/platforms/NXP_IMX952_MISC.robot
           test -f tools/imx952-digital-twin/equivalence/check_misc_contract.py
           test -f tools/imx952-digital-twin/equivalence/check_system_manager_misc_overlay.py
