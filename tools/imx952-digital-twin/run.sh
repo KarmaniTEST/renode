@@ -23,11 +23,14 @@ case "${MODE}" in
     demo)
         SCRIPT="${ROOT_DIR}/scripts/single-node/nxp_imx952_evk_heterogeneous_demo.resc"
         ;;
+    mu7)
+        SCRIPT="${ROOT_DIR}/scripts/single-node/nxp_imx952_evk_mu7_firmware_demo.resc"
+        ;;
     platform)
         SCRIPT="${ROOT_DIR}/scripts/single-node/nxp_imx952_evk.resc"
         ;;
     *)
-        echo "Usage: bash $0 [demo|platform|qualify] [auto|local|docker]" >&2
+        echo "Usage: bash $0 [demo|mu7|platform|qualify] [auto|local|docker]" >&2
         exit 2
         ;;
 esac
