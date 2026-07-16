@@ -1,0 +1,108 @@
+name: i.MX952 Hybrid Backend Readiness
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - imx952-full-equivalence-program
+    paths:
+      - "tools/imx952-digital-twin/equivalence/validate_hybrid_backends.py"
+      - "tools/imx952-digital-twin/equivalence/plans/imx952_hybrid_backends.template.json"
+      - "tools/imx952-digital-twin/equivalence/tests/test_hybrid_backends.py"
+      - ".github/workflows/imx952-hybrid-backends.yml"
+  pull_request:
+    paths:
+      - "tools/imx952-digital-twin/equivalence/validate_hybrid_backends.py"
+      - "tools/imx952-digital-twin/equivalence/plans/imx952_hybrid_backends.template.json"
+      - "tools/imx952-digital-twin/equivalence/tests/test_hybrid_backends.py"
+      - ".github/workflows/imx952-hybrid-backends.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-hybrid-backends:
+    name: Fail-closed hybrid backend readiness
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v4
+
+      - name: Validate backend manifest schema
+        run: |
+          python3 -m json.tool \
+            tools/imx952-digital-twin/equivalence/plans/imx952_hybrid_backends.template.json \
+            >/dev/null
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('tools/imx952-digital-twin/equivalence/plans/imx952_hybrid_backends.template.json')
+          data = json.loads(path.read_text())
+          expected = {'gic_its_msi', 'netc', 'usb', 'pcie_hsio', 'gpu', 'npu'}
+          if set(data['subsystems']) != expected:
+              raise SystemExit('hybrid backend subsystem inventory differs')
+          sources = {item['repository'] for item in data['integration_sources']}
+          required = {
+              'antmicro/renode-verilator-integration',
+              'antmicro/renode-dpi-examples',
+              'antmicro/renode-systemc-examples',
+          }
+          if sources != required:
+              raise SystemExit('official Renode co-simulation source inventory differs')
+          print('Hybrid backend manifest schema and integration paths are pinned.')
+          PY
+
+      - name: Test backend gate logic
+        run: |
+          python3 -m unittest \
+            tools/imx952-digital-twin/equivalence/tests/test_hybrid_backends.py \
+            -v
+
+      - name: Verify default functional readiness remains blocked
+        shell: bash
+        run: |
+          set +e
+          python3 tools/imx952-digital-twin/equivalence/validate_hybrid_backends.py \
+            --manifest tools/imx952-digital-twin/equivalence/plans/imx952_hybrid_backends.template.json \
+            --root /tmp/imx952-hybrid-backends-not-provided \
+            --mode functional \
+            --output imx952-hybrid-functional-blocked.json
+          status=$?
+          cat imx952-hybrid-functional-blocked.json
+          test "${status}" -eq 2
+          grep -q '"verdict": "BLOCKED"' imx952-hybrid-functional-blocked.json
+          grep -q 'backend is disabled' imx952-hybrid-functional-blocked.json
+
+      - name: Verify default full physical readiness remains blocked
+        shell: bash
+        run: |
+          set +e
+          python3 tools/imx952-digital-twin/equivalence/validate_hybrid_backends.py \
+            --manifest tools/imx952-digital-twin/equivalence/plans/imx952_hybrid_backends.template.json \
+            --root /tmp/imx952-hybrid-backends-not-provided \
+            --mode full-physical \
+            --output imx952-hybrid-full-physical-blocked.json
+          status=$?
+          cat imx952-hybrid-full-physical-blocked.json
+          test "${status}" -eq 2
+          grep -q '"verdict": "BLOCKED"' imx952-hybrid-full-physical-blocked.json
+          grep -q 'physical evidence is missing' imx952-hybrid-full-physical-blocked.json
+
+      - name: Upload hybrid backend gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: imx952-hybrid-backend-readiness
+          path: |
+            imx952-hybrid-functional-blocked.json
+            imx952-hybrid-full-physical-blocked.json
+          if-no-files-found: warn
+
+      - name: Verify hybrid backend entry points
+        if: success()
+        run: |
+          test -f tools/imx952-digital-twin/equivalence/validate_hybrid_backends.py
+          test -f tools/imx952-digital-twin/equivalence/plans/imx952_hybrid_backends.template.json
+          test -f tools/imx952-digital-twin/equivalence/tests/test_hybrid_backends.py
