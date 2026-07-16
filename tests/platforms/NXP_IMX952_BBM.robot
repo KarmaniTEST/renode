@@ -1,19 +1,31 @@
 *** Settings ***
-Documentation     Validate source-derived i.MX952 NXP BBM protocol resources and permissions.
+Documentation     Validate source-derived i.MX952 NXP BBM resources, permissions and normal P2A notification delivery.
 Test Setup        Reset Emulation
 Suite Teardown    Teardown
 Resource          ${RENODEKEYWORDS}
 
 *** Variables ***
-${PLATFORM}          ${CURDIR}/../../platforms/boards/nxp_imx952_evk_full.repl
-${AP_GCR}            0x445B0114
-${AP_NS_HEADER}      0x445B1118
-${AP_NS_PAYLOAD}     0x445B111C
-${AP_NS_RESPONSE1}   0x445B1120
-${M7_GCR}            0x44610114
-${M7_HEADER}         0x44611018
-${M7_PAYLOAD}        0x4461101C
-${M7_RESPONSE1}      0x44611020
+${PLATFORM}                ${CURDIR}/../../platforms/boards/nxp_imx952_evk_full.repl
+${AP_GCR}                  0x445B0114
+${AP_GSR}                  0x445B0118
+${AP_NS_HEADER}            0x445B1118
+${AP_NS_PAYLOAD}           0x445B111C
+${AP_NS_RESPONSE1}         0x445B1120
+${AP_NS_NOTIFY_STATUS}     0x445B1184
+${AP_NS_NOTIFY_HEADER}     0x445B1198
+${AP_NS_NOTIFY_PAYLOAD}    0x445B119C
+${AP_BBM_RTC_TRIGGER}      0x445B01E8
+${AP_BBM_BUTTON_TRIGGER}   0x445B01EC
+${M7_GCR}                  0x44610114
+${M7_GSR}                  0x44610118
+${M7_HEADER}               0x44611018
+${M7_PAYLOAD}              0x4461101C
+${M7_RESPONSE1}            0x44611020
+${M7_NOTIFY_STATUS}        0x44611084
+${M7_NOTIFY_HEADER}        0x44611098
+${M7_NOTIFY_PAYLOAD}       0x4461109C
+${M7_BBM_RTC_TRIGGER}      0x446101E8
+${M7_BBM_BUTTON_TRIGGER}   0x446101EC
 
 *** Keywords ***
 Create Full Candidate
@@ -148,3 +160,94 @@ M7 Can Access EVK PCA2131 RTC Through Its ALL Permission
     ${time_low}=      Read Dword    ${M7_RESPONSE1}
     Should Be Equal As Numbers    ${get_status}    0
     Should Be Equal As Numbers    ${time_low}      123456
+
+M7 RTC Rollover Notification Uses Normal P2A Channel One
+    Create Full Candidate
+    # Subscribe M7 to RTC1 rollover events (bit 1).
+    Write Dword    ${M7_PAYLOAD}      1
+    Write Dword    ${M7_RESPONSE1}    2
+    Call M7        0x0002040A
+    ${subscribe}=    Read Dword    ${M7_PAYLOAD}
+    Should Be Equal As Numbers    ${subscribe}    0
+
+    # Trigger RTC1 rollover: RTC ID 1, event selector 1.
+    Write Dword    ${M7_BBM_RTC_TRIGGER}    0x00000101
+    ${status}=     Read Dword    ${M7_NOTIFY_STATUS}
+    ${header}=     Read Dword    ${M7_NOTIFY_HEADER}
+    ${flags}=      Read Dword    ${M7_NOTIFY_PAYLOAD}
+    ${gsr}=        Read Dword    ${M7_GSR}
+    Should Be Equal As Numbers    ${status}    0
+    Should Be Equal As Numbers    ${header}    0x00020700
+    Should Be Equal As Numbers    ${flags}     0x01000002
+    Should Be Equal As Numbers    ${gsr} & 2   2
+
+AP Nonsecure RTC Update Notification Uses Local Channel Three
+    Create Full Candidate
+    # Subscribe AP-NS to RTC0 update events (bit 2).
+    Write Dword    ${AP_NS_PAYLOAD}      0
+    Write Dword    ${AP_NS_RESPONSE1}    4
+    Call AP NS     0x0002040A
+    ${subscribe}=    Read Dword    ${AP_NS_PAYLOAD}
+    Should Be Equal As Numbers    ${subscribe}    0
+
+    Write Dword    ${AP_BBM_RTC_TRIGGER}    0x00000200
+    ${status}=     Read Dword    ${AP_NS_NOTIFY_STATUS}
+    ${header}=     Read Dword    ${AP_NS_NOTIFY_HEADER}
+    ${flags}=      Read Dword    ${AP_NS_NOTIFY_PAYLOAD}
+    ${gsr}=        Read Dword    ${AP_GSR}
+    Should Be Equal As Numbers    ${status}    0
+    Should Be Equal As Numbers    ${header}    0x00020700
+    Should Be Equal As Numbers    ${flags}     0x00000004
+    Should Be Equal As Numbers    ${gsr} & 8   8
+
+AP Nonsecure Button Detection Notification Is Subscription Controlled
+    Create Full Candidate
+    Write Dword    ${AP_NS_PAYLOAD}    1
+    Call AP NS     0x0002040B
+    ${subscribe}=    Read Dword    ${AP_NS_PAYLOAD}
+    Should Be Equal As Numbers    ${subscribe}    0
+
+    Write Dword    ${AP_BBM_BUTTON_TRIGGER}    1
+    ${header}=    Read Dword    ${AP_NS_NOTIFY_HEADER}
+    ${flags}=     Read Dword    ${AP_NS_NOTIFY_PAYLOAD}
+    Should Be Equal As Numbers    ${header}    0x00020701
+    Should Be Equal As Numbers    ${flags}     1
+
+Unsubscribed BBM Events Are Suppressed
+    Create Full Candidate
+    Write Dword    ${M7_BBM_RTC_TRIGGER}       0x00000000
+    Write Dword    ${M7_BBM_BUTTON_TRIGGER}    1
+    ${status}=    Read Dword    ${M7_NOTIFY_STATUS}
+    ${header}=    Read Dword    ${M7_NOTIFY_HEADER}
+    ${gsr}=       Read Dword    ${M7_GSR}
+    Should Be Equal As Numbers    ${status}    1
+    Should Be Equal As Numbers    ${header}    0
+    Should Be Equal As Numbers    ${gsr} & 2   0
+
+Normal P2A Queue Preserves RTC Event Order While Channel Is Busy
+    Create Full Candidate
+    # Subscribe to RTC0 alarm and rollover events.
+    Write Dword    ${M7_PAYLOAD}      0
+    Write Dword    ${M7_RESPONSE1}    3
+    Call M7        0x0002040A
+
+    # Alarm dispatches immediately and occupies channel 1.
+    Write Dword    ${M7_BBM_RTC_TRIGGER}    0x00000000
+    ${first_header}=    Read Dword    ${M7_NOTIFY_HEADER}
+    ${first_flags}=     Read Dword    ${M7_NOTIFY_PAYLOAD}
+    Should Be Equal As Numbers    ${first_header}    0x00020700
+    Should Be Equal As Numbers    ${first_flags}     0x00000001
+
+    # Rollover is queued while the channel remains busy.
+    Write Dword    ${M7_BBM_RTC_TRIGGER}    0x00000100
+    ${busy_flags}=    Read Dword    ${M7_NOTIFY_PAYLOAD}
+    Should Be Equal As Numbers    ${busy_flags}    0x00000001
+
+    # Agent releases the SMT channel; queued rollover is delivered with token 1.
+    Write Dword    ${M7_NOTIFY_STATUS}    1
+    ${second_status}=    Read Dword    ${M7_NOTIFY_STATUS}
+    ${second_header}=    Read Dword    ${M7_NOTIFY_HEADER}
+    ${second_flags}=     Read Dword    ${M7_NOTIFY_PAYLOAD}
+    Should Be Equal As Numbers    ${second_status}    0
+    Should Be Equal As Numbers    ${second_header}    0x00060700
+    Should Be Equal As Numbers    ${second_flags}     0x00000002
