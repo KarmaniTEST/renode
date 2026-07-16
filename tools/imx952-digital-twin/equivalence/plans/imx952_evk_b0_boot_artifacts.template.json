@@ -1,5 +1,6 @@
 {
   "schema_version": 2,
+  "evidence_class": "production",
   "target": {
     "soc": "i.MX952",
     "revision": "B0",
@@ -32,6 +33,7 @@
       "name": "u_boot_atf_container",
       "path": "u-boot-atf-container.img",
       "required": true,
+      "execution_source": true,
       "sha256": "",
       "container_validation": {
         "offsets": ["0x0"],
@@ -56,6 +58,7 @@
       "name": "u_boot_spl",
       "path": "u-boot-spl.bin",
       "required": true,
+      "load_address": "0x20480000",
       "sha256": ""
     },
     {
@@ -85,6 +88,7 @@
     "required_artifact_hashes": "Every required artifact must have a non-empty matching SHA-256 before execution readiness can pass.",
     "container_structure": "Every artifact with container_validation must pass the pinned B0 container-v2 structure and descriptor hash gate.",
     "stage_presence": "flash.bin and u-boot-atf-container.img must contain images destined for ATF 0x8A200000 and U-Boot 0x90200000.",
+    "execution_source": "Exactly one verified container must be marked execution_source for the post-authentication ATF/U-Boot plan.",
     "claim_boundary": "READY_FOR_EXECUTION is not a production boot, authentication, DDR training, ATF handoff, U-Boot handoff or physical-equivalence result."
   }
 }
