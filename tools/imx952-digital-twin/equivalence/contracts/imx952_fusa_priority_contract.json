@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "target": "i.MX952 EVK",
+  "source": {
+    "repository": "nxp-imx/imx-sm",
+    "commit": "44f76dcb32945a60e08ea0133700b820349efbd3",
+    "generated_agent_config": {
+      "path": "configs/mx952evk/config_scmi.h",
+      "git_blob_sha": "75db444cccfdef07de458cfc210211ee7de13796"
+    },
+    "generated_transport_config": {
+      "path": "configs/mx952evk/config_smt.h",
+      "git_blob_sha": "ca8e3b640d195a7dd8571f853ff319bc9a09ea8c"
+    },
+    "fusa_protocol": {
+      "path": "sm/rpc/scmi/rpc_scmi_fusa.c",
+      "git_blob_sha": "3b246af8595ca3d693b85230bf035bc5b0059135"
+    },
+    "fusa_api": {
+      "path": "sm/rpc/scmi/rpc_scmi_fusa.h",
+      "git_blob_sha": "faa9f088795f72889acb40f320c37c45c7bb2145"
+    },
+    "fault_header": {
+      "path": "devices/MIMX952/sm/dev_sm_fault.h",
+      "git_blob_sha": "d74d8869c76c528d96ffe79d34d6bb7fc66f6920"
+    }
+  },
+  "protocol": {
+    "id": "0x83",
+    "version": "0x00010000",
+    "visible_agents": [0],
+    "agent_names": {"0": "M7"},
+    "permission": "ALL",
+    "seenv_id": 1,
+    "implemented_commands": [
+      "PROTOCOL_VERSION",
+      "PROTOCOL_ATTRIBUTES",
+      "PROTOCOL_MESSAGE_ATTRIBUTES",
+      "FUSA_FEENV_STATE_GET",
+      "FUSA_FEENV_STATE_NOTIFY",
+      "FUSA_SEENV_STATE_GET",
+      "FUSA_SEENV_STATE_SET",
+      "NEGOTIATE_PROTOCOL_VERSION"
+    ],
+    "not_implemented_commands": [
+      "FUSA_FAULT_GET",
+      "FUSA_FAULT_SET",
+      "FUSA_FAULT_GROUP_NOTIFY",
+      "FUSA_SCHECK_EVNTRIG",
+      "FUSA_SCHECK_TEST_EXEC"
+    ]
+  },
+  "inventory": {
+    "fault_count": 89,
+    "seenv_id_count": 1,
+    "seenv_lm_count": 1
+  },
+  "priority_transport": {
+    "agent": "M7",
+    "local_channel": 2,
+    "global_smt_channel": 2,
+    "mu_instance": 0,
+    "mu_doorbell": 2,
+    "notification_message_id": 0,
+    "notification_name": "FUSA_FEENV_STATE_EVENT",
+    "scmi_message_type": 3,
+    "queue_limit": 8,
+    "busy_channel_policy": "Preserve queued event order and dispatch the next event only after the agent marks SMT channel 2 free."
+  },
+  "deterministic_evidence_input": {
+    "offset": "0x1E4",
+    "layout": "Bits[7:0] F-EENV state; Bits[15:8] MSEL mode.",
+    "classification": "Test instrumentation only; not an i.MX952 production register."
+  },
+  "qualification_evidence": [
+    "scripts/pydev/nxp_imx952_system_manager_fusa.py",
+    "tests/platforms/NXP_IMX952_FUSA_PRIORITY.robot"
+  ],
+  "qualification_boundary": [
+    "This contract proves a deterministic functional M7 FuSa first slice and priority P2A queue/channel behavior.",
+    "The 89-fault inventory is reported from the pinned device header, but fault get/set/notification behavior is not yet implemented.",
+    "The deterministic F-EENV trigger is test instrumentation and does not claim physical safety-island or fault-source generation.",
+    "MU/NVIC interrupt latency, queue timing, safety reaction timing and physical fault propagation remain hardware-correlation gates."
+  ]
+}
