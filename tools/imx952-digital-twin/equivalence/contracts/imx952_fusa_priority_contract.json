@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "target": "i.MX952 EVK",
   "source": {
     "repository": "nxp-imx/imx-sm",
@@ -43,12 +43,16 @@
       "FUSA_FAULT_GET",
       "FUSA_FAULT_SET",
       "FUSA_FAULT_GROUP_NOTIFY",
+      "FUSA_SCHECK_EVNTRIG",
+      "FUSA_SCHECK_TEST_EXEC",
       "NEGOTIATE_PROTOCOL_VERSION"
     ],
-    "not_implemented_commands": [
-      "FUSA_SCHECK_EVNTRIG",
-      "FUSA_SCHECK_TEST_EXEC"
-    ]
+    "not_implemented_commands": [],
+    "scheck_overlay": {
+      "model": "scripts/pydev/nxp_imx952_system_manager_fusa_scheck.py",
+      "contract": "tools/imx952-digital-twin/equivalence/contracts/imx952_fusa_scheck_contract.json",
+      "checker": "tools/imx952-digital-twin/equivalence/check_fusa_scheck_contract.py"
+    }
   },
   "inventory": {
     "global_fault_count": 89,
@@ -69,6 +73,11 @@
     "recovery_notification": "A subscribed deterministic recovery/set input emits FUSA_FAULT_EVENT with state flag 1.",
     "group_notify": "Apply a 32-fault window, permission-filter requested bits, and return the effective enabled mask. A mixed permitted/unpermitted request succeeds when at least one permitted fault is updated.",
     "fault_event_payload": ["fault_id", "state_flag"]
+  },
+  "scheck_semantics": {
+    "event_trigger": "Accept the M7 S-EENV request and return success. The pinned NXP LMM backend has no additional hardware-side behavior.",
+    "test_exec": "Accept and record the caller-provided targetTestId. The pinned NXP LMM backend performs no range validation or SCST execution.",
+    "evidence": "Deterministic invocation counters and last-target capture are test instrumentation only."
   },
   "priority_transport": {
     "agent": "M7",
@@ -98,13 +107,16 @@
   },
   "qualification_evidence": [
     "scripts/pydev/nxp_imx952_system_manager_fusa.py",
+    "scripts/pydev/nxp_imx952_system_manager_fusa_scheck.py",
     "tests/platforms/NXP_IMX952_FUSA_PRIORITY.robot",
-    "tests/platforms/NXP_IMX952_FUSA_FAULTS.robot"
+    "tests/platforms/NXP_IMX952_FUSA_FAULTS.robot",
+    "tests/platforms/NXP_IMX952_FUSA_SCHECK.robot"
   ],
   "qualification_boundary": [
-    "This contract proves deterministic functional M7 FuSa state and source-permitted fault command behavior plus ordered priority P2A delivery.",
+    "This contract proves deterministic functional M7 FuSa state, source-permitted fault commands, the complete pinned software-visible command inventory, and ordered priority P2A delivery.",
     "The global 89-fault inventory is preserved while mutation, get and notification configuration are restricted to the exact five M7-permitted faults.",
-    "The deterministic triggers are test instrumentation and do not claim FCCU, safety-island or physical fault-source generation.",
-    "Physical fault detection, escalation, recovery outcomes, reset reactions, MU/NVIC latency, queue timing, safety reaction timing and propagation remain hardware-correlation gates."
+    "S-check command acceptance matches the pinned NXP LMM backend boundary and does not claim SCST/SAF execution.",
+    "The deterministic triggers and evidence registers are test instrumentation and do not claim FCCU, safety-island or physical fault-source generation.",
+    "Physical fault detection, escalation, recovery outcomes, reset reactions, SCST diagnostic coverage, MU/NVIC latency, queue timing, safety reaction timing and propagation remain hardware-correlation gates."
   ]
 }
