@@ -104,13 +104,23 @@ FuSa Version Attributes And Message Inventory Match Pinned Source
 
     Write Dword    ${M7_PAYLOAD}    8
     Call M7        0x00020C02
-    ${supported}=    Read Dword    ${M7_PAYLOAD}
-    Should Be Equal As Numbers    ${supported}    0
+    ${fault_get}=    Read Dword    ${M7_PAYLOAD}
+    Should Be Equal As Numbers    ${fault_get}    0
 
     Write Dword    ${M7_PAYLOAD}    0x0B
     Call M7        0x00020C02
-    ${not_supported}=    Read Dword    ${M7_PAYLOAD}
-    Should Be Equal As Numbers    ${not_supported}    0xFFFFFFFC
+    ${scheck_event}=    Read Dword    ${M7_PAYLOAD}
+    Should Be Equal As Numbers    ${scheck_event}    0
+
+    Write Dword    ${M7_PAYLOAD}    0x0E
+    Call M7        0x00020C02
+    ${scheck_test}=    Read Dword    ${M7_PAYLOAD}
+    Should Be Equal As Numbers    ${scheck_test}    0
+
+    Write Dword    ${M7_PAYLOAD}    0x0C
+    Call M7        0x00020C02
+    ${missing}=    Read Dword    ${M7_PAYLOAD}
+    Should Be Equal As Numbers    ${missing}    0xFFFFFFFC
 
 FuSa F EENV State Notification Uses Queued Priority Channel
     Create Full Candidate
