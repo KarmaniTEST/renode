@@ -77,12 +77,12 @@ M7 RTC Notification Requires Matching Subscription
     # Subscribe only to RTC1 update events (bit 2).
     Subscribe M7 RTC    1    4
 
-    # Alarm event is filtered and channel 1 remains free.
+    # Alarm event is filtered. GSR bit 0 remains from the A2P subscription response.
     Write Dword    ${M7_RTC_TRIGGER}    1
     ${filtered_status}=    Read Dword    ${M7_NOTIFY_STATUS}
     ${filtered_gsr}=       Read Dword    ${M7_GSR}
     Should Be Equal As Numbers    ${filtered_status}    1
-    Should Be Equal As Numbers    ${filtered_gsr} & 2    0
+    Should Be Equal As Numbers    ${filtered_gsr}       1
 
     # RTC1 update event is delivered on M7 normal P2A channel 1.
     Write Dword    ${M7_RTC_TRIGGER}    0x201
@@ -95,7 +95,7 @@ M7 RTC Notification Requires Matching Subscription
     Should Be Equal As Numbers    ${length}     8
     Should Be Equal As Numbers    ${header}     0x00020700
     Should Be Equal As Numbers    ${payload}    0x01000004
-    Should Be Equal As Numbers    ${gsr} & 2    2
+    Should Be Equal As Numbers    ${gsr}        3
 
 AP Nonsecure RTC Notification Uses Its Normal P2A Channel
     Create Full Candidate
@@ -114,7 +114,7 @@ AP Nonsecure RTC Notification Uses Its Normal P2A Channel
     Should Be Equal As Numbers    ${length}         8
     Should Be Equal As Numbers    ${header}         0x00020700
     Should Be Equal As Numbers    ${payload}        0x00000001
-    Should Be Equal As Numbers    ${gsr} & 8        8
+    Should Be Equal As Numbers    ${gsr}            12
 
 M7 Button Detection Notification Uses BBM Message One
     Create Full Candidate
@@ -161,4 +161,4 @@ Disabling BBM Subscription Suppresses Later Events
     ${status}=    Read Dword    ${M7_NOTIFY_STATUS}
     ${gsr}=       Read Dword    ${M7_GSR}
     Should Be Equal As Numbers    ${status}    1
-    Should Be Equal As Numbers    ${gsr} & 2    0
+    Should Be Equal As Numbers    ${gsr}       1
