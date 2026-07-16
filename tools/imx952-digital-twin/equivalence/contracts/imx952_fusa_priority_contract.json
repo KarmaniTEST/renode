@@ -94,7 +94,7 @@
       "offset": "0x1F8",
       "layout": "Bits[7:0] fault ID; Bit[8] resulting state/event flag."
     },
-    "classification": "Test instrumentation only; neither offset is an i.MX952 production register or physical fault source."
+    "classification": "Test instrumentation only; not an i.MX952 production register or physical fault source."
   },
   "qualification_evidence": [
     "scripts/pydev/nxp_imx952_system_manager_fusa.py",
