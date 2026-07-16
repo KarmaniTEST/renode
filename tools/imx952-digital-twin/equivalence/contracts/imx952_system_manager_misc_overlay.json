@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "target": "i.MX952 EVK",
+  "applies_to": {
+    "contract": "tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_contract.json",
+    "minimum_schema_version": 9,
+    "historical_gate": "misc_first_slice"
+  },
+  "supersedes": {
+    "scope": "AP-NS COMBO_PHY-only first implementation slice",
+    "authoritative_contract": "tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json",
+    "authoritative_schema_version": 3
+  },
+  "agent_resources": {
+    "0": {
+      "agent": "M7",
+      "misc_controls": [14, 15, 16],
+      "protocol_visible": true,
+      "non_base_protocol_count": 11
+    },
+    "1": {
+      "agent": "AP-S",
+      "misc_controls": [],
+      "protocol_visible": false,
+      "non_base_protocol_count": 5
+    },
+    "2": {
+      "agent": "AP-NS",
+      "misc_controls": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      "protocol_visible": true,
+      "non_base_protocol_count": 9
+    }
+  },
+  "transport": {
+    "normal_notifications": {
+      "M7": {"local_channel": 1, "global_channel": 1, "mu_doorbell": 1},
+      "AP-NS": {"local_channel": 3, "global_channel": 6, "mu_doorbell": 1}
+    },
+    "priority_notifications_unchanged": {
+      "M7": {"local_channel": 2, "global_channel": 2, "mu_doorbell": 2}
+    }
+  },
+  "qualification_evidence": [
+    "tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json",
+    "tools/imx952-digital-twin/equivalence/check_misc_contract.py",
+    "scripts/pydev/nxp_imx952_system_manager_misc.py",
+    "tests/platforms/NXP_IMX952_MISC.robot",
+    ".github/workflows/imx952-misc.yml"
+  ],
+  "claim_boundary": "This overlay promotes the complete source-permitted functional MISC surface only. Physical control side effects, PHY behavior, PCA2131/I2C timing and persistence, physical board-event generation, safety reaction behavior, fuse values, ROM passover and interrupt latency remain outside the claim."
+}

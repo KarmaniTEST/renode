@@ -1,0 +1,149 @@
+{
+  "schema_version": 3,
+  "target": "i.MX952 EVK",
+  "protocol": {
+    "id": "0x84",
+    "name": "NXP_MISC",
+    "version": "0x00010001",
+    "source": {
+      "repository": "nxp-imx/imx-sm",
+      "commit": "44f76dcb32945a60e08ea0133700b820349efbd3",
+      "implementation": "sm/rpc/scmi/rpc_scmi_misc.c",
+      "implementation_blob_sha": "87431fb162f7938238a68b4732f97bfd1c7f05ab",
+      "protocol_header": "sm/rpc/scmi/rpc_scmi_misc.h",
+      "protocol_header_blob_sha": "9cbe547f306a91dee839dbf63651f802bc72ed0b",
+      "device_control_header": "devices/MIMX952/sm/dev_sm_control.h",
+      "device_control_header_blob_sha": "85c14e377ac6ae7c69fde11886e58501280ad694",
+      "device_control_source": "devices/MIMX952/sm/dev_sm_control.c",
+      "device_control_source_blob_sha": "3008bc27a889cc45afb105c4d468484d16cb0420",
+      "board_control_header": "boards/mcimx952evk/sm/brd_sm_control.h",
+      "board_control_header_blob_sha": "22b61e72d817b74902a155cf93e87c1e984df512",
+      "board_control_source": "boards/mcimx952evk/sm/brd_sm_control.c",
+      "board_control_source_blob_sha": "bfc33a8482b956bdd4639ef88ab363a2600d2f83",
+      "generated_config": "configs/mx952evk/config_scmi.h",
+      "generated_config_blob_sha": "75db444cccfdef07de458cfc210211ee7de13796",
+      "pca2131_backend": "boards/mcimx952evk/sm/brd_sm_bbm.c",
+      "pca2131_backend_blob_sha": "f781baa79e3130eaa7335204682e872971e11a63"
+    }
+  },
+  "messages": [
+    {"id": "0x00", "name": "PROTOCOL_VERSION"},
+    {"id": "0x01", "name": "PROTOCOL_ATTRIBUTES"},
+    {"id": "0x02", "name": "PROTOCOL_MESSAGE_ATTRIBUTES"},
+    {"id": "0x03", "name": "MISC_CONTROL_SET"},
+    {"id": "0x04", "name": "MISC_CONTROL_GET"},
+    {"id": "0x05", "name": "MISC_CONTROL_ACTION"},
+    {"id": "0x06", "name": "MISC_DISCOVER_BUILD_INFO"},
+    {"id": "0x07", "name": "MISC_ROM_PASSOVER_GET"},
+    {"id": "0x08", "name": "MISC_CONTROL_NOTIFY"},
+    {"id": "0x09", "name": "MISC_REASON_ATTRIBUTES"},
+    {"id": "0x0A", "name": "MISC_RESET_REASON"},
+    {"id": "0x0B", "name": "MISC_SI_INFO"},
+    {"id": "0x0C", "name": "MISC_CFG_INFO"},
+    {"id": "0x0D", "name": "MISC_SYSLOG"},
+    {"id": "0x0E", "name": "MISC_BOARD_INFO"},
+    {"id": "0x10", "name": "NEGOTIATE_PROTOCOL_VERSION"},
+    {"id": "0x20", "name": "MISC_CONTROL_EXT_SET"},
+    {"id": "0x21", "name": "MISC_CONTROL_EXT_GET"},
+    {"id": "0x22", "name": "MISC_DDR_INFO_GET"}
+  ],
+  "inventory": {
+    "device_control_count": 10,
+    "board_control_count": 8,
+    "reset_reason_count": 32,
+    "board_wire_flag": "0x8000"
+  },
+  "device_controls": [
+    {"id": 0, "name": "PDM_CLK_SEL", "mask": "0x00000001", "operations": ["SET", "GET", "ACTION"]},
+    {"id": 1, "name": "MQS1_SETTINGS", "mask": "0x0000FF0E", "operations": ["SET", "GET", "ACTION"]},
+    {"id": 2, "name": "SAI3_MCLK", "mask": "0x000001FF", "operations": ["SET", "GET", "ACTION"]},
+    {"id": 3, "name": "SAI4_MCLK", "mask": "0x0003FE00", "operations": ["SET", "GET", "ACTION"]},
+    {"id": 4, "name": "SAI5_MCLK", "mask": "0x07FC0000", "operations": ["SET", "GET", "ACTION"]},
+    {"id": 5, "name": "ADC_TEST", "mask": "0x00000080", "operations": ["SET", "GET", "ACTION"]},
+    {"id": 6, "name": "ASRC1_MCLK", "mask": "0x0000003F", "operations": ["SET", "GET", "ACTION"]},
+    {"id": 7, "name": "ASRC2_MCLK", "mask": "0x00000FC0", "operations": ["SET", "GET", "ACTION"]},
+    {"id": 8, "name": "BYPASS_AUDMIX", "mask": "0x00000001", "operations": ["SET", "GET", "ACTION"]},
+    {"id": 9, "name": "COMBO_PHY", "mask": "0x00000007", "operations": ["SET", "GET", "ACTION"]}
+  ],
+  "board_controls": [
+    {"unified_id": 10, "wire_id": "0x8000", "local_id": 0, "name": "SD3_WAKE", "operations": ["GET", "NOTIFY"]},
+    {"unified_id": 11, "wire_id": "0x8001", "local_id": 1, "name": "M2E_WAKE", "operations": ["GET", "NOTIFY"]},
+    {"unified_id": 12, "wire_id": "0x8002", "local_id": 2, "name": "BT_WAKE", "operations": ["GET", "NOTIFY"]},
+    {"unified_id": 13, "wire_id": "0x8003", "local_id": 3, "name": "M2M_WAKE", "operations": ["GET", "NOTIFY"]},
+    {"unified_id": 14, "wire_id": "0x8004", "local_id": 4, "name": "BUTTON", "operations": ["GET", "NOTIFY"]},
+    {"unified_id": 15, "wire_id": "0x8005", "local_id": 5, "name": "TEST", "operations": ["ACTION"]},
+    {"unified_id": 16, "wire_id": "0x8006", "local_id": 6, "name": "PCA2131", "operations": ["EXT_SET", "EXT_GET"]},
+    {"unified_id": 17, "wire_id": "0x8007", "local_id": 7, "name": "TEST_A", "operations": ["ACTION"]}
+  ],
+  "agent_permissions": {
+    "0": {
+      "agent": "M7",
+      "controls": {"14": "NOTIFY", "15": "ALL", "16": "ALL"}
+    },
+    "1": {
+      "agent": "AP-S",
+      "controls": {}
+    },
+    "2": {
+      "agent": "AP-NS",
+      "controls": {
+        "0": "ALL", "1": "ALL", "2": "ALL", "3": "ALL", "4": "ALL",
+        "5": "ALL", "6": "ALL", "7": "ALL", "8": "ALL", "9": "ALL",
+        "10": "NOTIFY", "11": "NOTIFY", "12": "NOTIFY", "13": "NOTIFY", "14": "NOTIFY"
+      }
+    }
+  },
+  "permission_thresholds": {
+    "GET": "GET",
+    "NOTIFY": "NOTIFY",
+    "SET": "EXCLUSIVE",
+    "ACTION": "EXCLUSIVE",
+    "EXT_SET": "EXCLUSIVE",
+    "EXT_GET": "GET"
+  },
+  "payload_limits": {
+    "control_value_words": 23,
+    "action_argument_words": 22,
+    "extended_value_words": 21,
+    "pca2131_board_backend_bytes": 24,
+    "effective_pca2131_scmi_words": 21
+  },
+  "notification_delivery": {
+    "message_id": 0,
+    "message_type": "SCMI_NOTIFICATION",
+    "queue_class": "NORMAL",
+    "modeled_queue_limit_messages": 8,
+    "overflow_policy": "drop_new_and_count",
+    "event_flags": {"input_low": 1, "input_high": 2},
+    "eligible_board_local_ids": [0, 1, 2, 3, 4],
+    "transport": {
+      "M7": {"local_channel": 1, "global_channel": 1, "mu_doorbell": 1},
+      "AP-NS": {"local_channel": 3, "global_channel": 6, "mu_doorbell": 1}
+    }
+  },
+  "deterministic_model_inputs": {
+    "board_control_trigger_offset": "0x1F4",
+    "encoding": "bits[7:0]=board local ID 0..4; bit[8]=input state",
+    "classification": "test instrumentation only; not a physical register or physical event source"
+  },
+  "safe_metadata_policy": {
+    "MISC_SI_INFO": "Return source-derived target identity while device ID, fuse revision and part-number words remain zero until physical evidence exists.",
+    "MISC_CFG_INFO": "Return pinned mx952evk identity and zero unmeasured mode-selector data.",
+    "MISC_BOARD_INFO": "Return i.MX952 EVK identity and zero unmeasured board attributes.",
+    "MISC_DISCOVER_BUILD_INFO": "Return deterministic model identity tied to the pinned source rather than impersonating production firmware.",
+    "MISC_DDR_INFO_GET": "Return the modeled 2 GiB DDR region with zero unmeasured MTS value.",
+    "MISC_ROM_PASSOVER_GET": "Return NOT_SUPPORTED until a production Boot ROM passover contract is available."
+  },
+  "qualification_evidence": [
+    "scripts/pydev/nxp_imx952_system_manager_misc.py",
+    "tests/platforms/NXP_IMX952_MISC.robot"
+  ],
+  "qualification_boundary": [
+    "The complete source-permitted functional control and notification surface is modeled; this is not a claim that every physical device-side effect is reproduced.",
+    "Device control state does not prove physical audio clock routing, ADC test behavior, AUDMIX bypass effects, or COMBO_PHY electrical/link behavior.",
+    "PCA2131 extended access is deterministic register storage and does not prove physical I2C timing, RTC electrical behavior, oscillator behavior, or battery-backed persistence.",
+    "TEST action is recorded without fabricating the physical SM_Error safety reaction.",
+    "Wake/button events are deterministic inputs and do not prove physical GPIO/input-expander generation or interrupt latency.",
+    "Fuse-derived values, physical DDR speed, ROM passover data, production syslog behavior and physical reset semantics remain hardware/firmware correlation gates."
+  ]
+}

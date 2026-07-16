@@ -1,0 +1,165 @@
+name: i.MX952 Boot Artifact Readiness
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - imx952-full-equivalence-program
+    paths:
+      - "platforms/boards/nxp_imx952_evk_full.repl"
+      - "scripts/pydev/nxp_imx952_*.py"
+      - "tests/platforms/NXP_IMX952_BOOT_EXECUTION_PLAN.robot"
+      - "tools/imx952-digital-twin/equivalence/parse_imx95_container_v2.py"
+      - "tools/imx952-digital-twin/equivalence/validate_boot_artifacts.py"
+      - "tools/imx952-digital-twin/equivalence/validate_boot_readiness.py"
+      - "tools/imx952-digital-twin/equivalence/generate_boot_execution_plan.py"
+      - "tools/imx952-digital-twin/equivalence/create_boot_execution_fixture.py"
+      - "tools/imx952-digital-twin/equivalence/check_boot_container_contract.py"
+      - "tools/imx952-digital-twin/equivalence/contracts/imx952_boot_container_v2_contract.json"
+      - "tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_boot_artifacts.template.json"
+      - "tools/imx952-digital-twin/equivalence/tests/test_imx95_container_v2.py"
+      - ".github/workflows/imx952-boot-readiness.yml"
+  pull_request:
+    paths:
+      - "platforms/boards/nxp_imx952_evk_full.repl"
+      - "scripts/pydev/nxp_imx952_*.py"
+      - "tests/platforms/NXP_IMX952_BOOT_EXECUTION_PLAN.robot"
+      - "tools/imx952-digital-twin/equivalence/parse_imx95_container_v2.py"
+      - "tools/imx952-digital-twin/equivalence/validate_boot_artifacts.py"
+      - "tools/imx952-digital-twin/equivalence/validate_boot_readiness.py"
+      - "tools/imx952-digital-twin/equivalence/generate_boot_execution_plan.py"
+      - "tools/imx952-digital-twin/equivalence/create_boot_execution_fixture.py"
+      - "tools/imx952-digital-twin/equivalence/check_boot_container_contract.py"
+      - "tools/imx952-digital-twin/equivalence/contracts/imx952_boot_container_v2_contract.json"
+      - "tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_boot_artifacts.template.json"
+      - "tools/imx952-digital-twin/equivalence/tests/test_imx95_container_v2.py"
+      - ".github/workflows/imx952-boot-readiness.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  boot-readiness:
+    name: Fail-closed B0 boot readiness
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v4
+
+      - name: Validate pinned container contract
+        run: |
+          python3 -m json.tool \
+            tools/imx952-digital-twin/equivalence/contracts/imx952_boot_container_v2_contract.json \
+            >/dev/null
+          python3 -m json.tool \
+            tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_boot_artifacts.template.json \
+            >/dev/null
+          python3 tools/imx952-digital-twin/equivalence/check_boot_container_contract.py
+
+      - name: Run exact container parser tests
+        run: |
+          python3 -m unittest \
+            tools/imx952-digital-twin/equivalence/tests/test_imx95_container_v2.py \
+            -v
+
+      - name: Verify production template fails closed without artifacts
+        shell: bash
+        run: |
+          set +e
+          python3 tools/imx952-digital-twin/equivalence/validate_boot_readiness.py \
+            --manifest tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_boot_artifacts.template.json \
+            --root /tmp/imx952-production-artifacts-not-provided \
+            --output imx952-boot-readiness-blocked.json
+          status=$?
+          cat imx952-boot-readiness-blocked.json
+          test "${status}" -eq 2
+          grep -q '"execution_readiness": "BLOCKED"' imx952-boot-readiness-blocked.json
+          grep -q 'required artifact hash is not pinned' imx952-boot-readiness-blocked.json
+
+      - name: Build explicit synthetic execution fixture
+        run: |
+          python3 tools/imx952-digital-twin/equivalence/create_boot_execution_fixture.py \
+            --root boot-fixture \
+            --manifest boot-fixture/manifest.json
+          python3 tools/imx952-digital-twin/equivalence/validate_boot_readiness.py \
+            --manifest boot-fixture/manifest.json \
+            --root boot-fixture \
+            --output boot-fixture/readiness.json
+          grep -q '"execution_readiness": "READY_FOR_EXECUTION"' boot-fixture/readiness.json
+
+      - name: Generate verified post-auth plan inside runtime path
+        run: |
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            python:3.12-slim \
+            python3 tools/imx952-digital-twin/equivalence/generate_boot_execution_plan.py \
+              --manifest boot-fixture/manifest.json \
+              --root /workspace/boot-fixture \
+              --platform /workspace/platforms/boards/nxp_imx952_evk_full.repl \
+              --output-resc /workspace/boot-fixture/imx952-post-auth.resc \
+              --output-json /workspace/boot-fixture/imx952-post-auth.json \
+              --allow-synthetic-fixture
+          grep -q '"classification": "SYNTHETIC_EXECUTION_FIXTURE"' boot-fixture/imx952-post-auth.json
+          grep -q '"auto_start": false' boot-fixture/imx952-post-auth.json
+
+      - name: Pull official Renode nightly runtime
+        run: docker pull antmicro/renode:nightly-dotnet
+
+      - name: Verify exact stage-range loading in Renode
+        shell: bash
+        run: |
+          set +e
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_full.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_full.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_transport.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_transport.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_bbm.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_bbm.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_misc.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_misc.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_clock.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_clock.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_pinctrl.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_pinctrl.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_fusa.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_fusa.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_fusa_scheck.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_fusa_scheck.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_ele.py:/opt/renode/scripts/pydev/nxp_imx952_ele.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_lpi2c7.py:/opt/renode/scripts/pydev/nxp_imx952_lpi2c7.py:ro" \
+            -w /workspace \
+            antmicro/renode:nightly-dotnet \
+            renode-test --show-log \
+              --variable BOOT_PLAN:/workspace/boot-fixture/imx952-post-auth.resc \
+              tests/platforms/NXP_IMX952_BOOT_EXECUTION_PLAN.robot \
+            > boot-fixture/renode-post-auth.log 2>&1
+          status=$?
+          cat boot-fixture/renode-post-auth.log || true
+          exit "${status}"
+
+      - name: Upload boot readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: imx952-boot-readiness-evidence
+          path: |
+            imx952-boot-readiness-blocked.json
+            boot-fixture/manifest.json
+            boot-fixture/readiness.json
+            boot-fixture/imx952-post-auth.resc
+            boot-fixture/imx952-post-auth.json
+            boot-fixture/renode-post-auth.log
+            logs/**/*.log
+          if-no-files-found: warn
+
+      - name: Verify boot readiness entry points
+        if: success()
+        run: |
+          test -f tools/imx952-digital-twin/equivalence/parse_imx95_container_v2.py
+          test -f tools/imx952-digital-twin/equivalence/validate_boot_artifacts.py
+          test -f tools/imx952-digital-twin/equivalence/validate_boot_readiness.py
+          test -f tools/imx952-digital-twin/equivalence/generate_boot_execution_plan.py
+          test -f tools/imx952-digital-twin/equivalence/create_boot_execution_fixture.py
+          test -f tools/imx952-digital-twin/equivalence/check_boot_container_contract.py
+          test -f tools/imx952-digital-twin/equivalence/contracts/imx952_boot_container_v2_contract.json
+          test -f tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_boot_artifacts.template.json
+          test -f tools/imx952-digital-twin/equivalence/tests/test_imx95_container_v2.py
+          test -f tests/platforms/NXP_IMX952_BOOT_EXECUTION_PLAN.robot

@@ -1,0 +1,131 @@
+{
+  "schema_version": 2,
+  "target": "i.MX952 EVK",
+  "protocol": {
+    "id": "0x81",
+    "name": "NXP_BBM",
+    "version": "0x00010000",
+    "source": {
+      "repository": "nxp-imx/imx-sm",
+      "commit": "44f76dcb32945a60e08ea0133700b820349efbd3",
+      "implementation": "sm/rpc/scmi/rpc_scmi_bbm.c",
+      "implementation_blob_sha": "73fdc3c132bf9b8e766a3973933d9836d8c1a8df",
+      "protocol_header": "sm/rpc/scmi/rpc_scmi_bbm.h",
+      "protocol_header_blob_sha": "c1ff487eb4b76e98177eb5c5f9b0f313795b8109",
+      "device_header": "devices/MIMX952/sm/dev_sm_bbm.h",
+      "board_header": "boards/mcimx952evk/sm/brd_sm_bbm.h",
+      "generated_config": "configs/mx952evk/config_scmi.h",
+      "generated_transport": "configs/mx952evk/config_smt.h"
+    }
+  },
+  "messages": [
+    {"id": "0x00", "name": "PROTOCOL_VERSION"},
+    {"id": "0x01", "name": "PROTOCOL_ATTRIBUTES"},
+    {"id": "0x02", "name": "PROTOCOL_MESSAGE_ATTRIBUTES"},
+    {"id": "0x03", "name": "BBM_GPR_SET"},
+    {"id": "0x04", "name": "BBM_GPR_GET"},
+    {"id": "0x05", "name": "BBM_RTC_ATTRIBUTES"},
+    {"id": "0x06", "name": "BBM_RTC_TIME_SET"},
+    {"id": "0x07", "name": "BBM_RTC_TIME_GET"},
+    {"id": "0x08", "name": "BBM_RTC_ALARM_SET"},
+    {"id": "0x09", "name": "BBM_BUTTON_GET"},
+    {"id": "0x0A", "name": "BBM_RTC_NOTIFY"},
+    {"id": "0x0B", "name": "BBM_BUTTON_NOTIFY"},
+    {"id": "0x0C", "name": "BBM_RTC_STATE"},
+    {"id": "0x10", "name": "NEGOTIATE_PROTOCOL_VERSION"}
+  ],
+  "notifications": {
+    "message_ids": {
+      "rtc_event": 0,
+      "button_event": 1
+    },
+    "message_type": "SCMI_NOTIFICATION",
+    "queues": {
+      "class": "NORMAL",
+      "modeled_queue_limit_messages": 8,
+      "overflow_policy": "drop_new_and_count"
+    },
+    "transport": {
+      "M7": {
+        "agent_id": 0,
+        "local_channel": 1,
+        "global_channel": 1,
+        "mu_doorbell": 1
+      },
+      "AP-NS": {
+        "agent_id": 2,
+        "local_channel": 3,
+        "global_channel": 6,
+        "mu_doorbell": 1
+      }
+    },
+    "rtc_subscription_bits": {
+      "alarm": 0,
+      "rollover": 1,
+      "updated": 2
+    },
+    "rtc_event_encoding": {
+      "rtc_id_bits": "31:24",
+      "updated_bit": 2,
+      "rollover_bit": 1,
+      "alarm_bit": 0
+    },
+    "button_subscription_bit": 0,
+    "button_event_detected_bit": 0,
+    "deterministic_test_inputs": {
+      "rtc_trigger_offset": "0x1E8",
+      "button_trigger_offset": "0x1EC",
+      "classification": "test instrumentation only; not physical registers"
+    }
+  },
+  "resources": {
+    "gprs": [0, 1, 2, 3, 4, 5, 6, 7],
+    "rtcs": [
+      {"id": 0, "name": "BBNSM"},
+      {"id": 1, "name": "PCA2131"}
+    ],
+    "buttons": [
+      {"id": 0, "name": "BBM_BUTTON_0"}
+    ]
+  },
+  "agent_permissions": [
+    {
+      "agent_id": 0,
+      "agent": "M7",
+      "gpr": {},
+      "rtc": {"0": "PRIV", "1": "ALL"},
+      "button": {"0": "NOTIFY"}
+    },
+    {
+      "agent_id": 1,
+      "agent": "AP-S",
+      "gpr": {},
+      "rtc": {},
+      "button": {}
+    },
+    {
+      "agent_id": 2,
+      "agent": "AP-NS",
+      "gpr": {"4": "ALL", "5": "ALL", "6": "ALL", "7": "ALL"},
+      "rtc": {"0": "ALL", "1": "PRIV"},
+      "button": {"0": "ALL"}
+    }
+  ],
+  "permission_semantics": {
+    "source": "sm/doc/config.md",
+    "hierarchy": ["NONE", "GET", "NOTIFY", "SET", "PRIV", "EXCLUSIVE", "ALL"],
+    "rule": "Higher permissions imply lower permissions. PRIV therefore includes GET/NOTIFY/SET but is not promoted to ALL."
+  },
+  "implementation_policy": [
+    "Do not advertise BBM to AP-S because the pinned EVK policy grants no BBM resource permission.",
+    "AP-NS GPR access is restricted to GPR4 through GPR7.",
+    "M7 has no GPR access in the pinned configuration.",
+    "RTC0 is BBNSM and RTC1 is the EVK PCA2131 board RTC.",
+    "RTC alarm, rollover and update subscriptions are independent and agent-specific.",
+    "Button detection subscription is independent and agent-specific.",
+    "RTC and button events use the normal P2A queue, never the FuSa priority queue.",
+    "M7 notifications use local channel 1 and AP-NS notifications use local channel 3.",
+    "RTC time, button state and deterministic event triggers remain functional-model inputs until physical-EVK correlation exists.",
+    "Functional queue ordering and doorbell pending state do not prove physical RTC/button generation, interrupt routing latency or timing equivalence."
+  ]
+}

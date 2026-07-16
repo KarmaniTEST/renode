@@ -1,0 +1,122 @@
+{
+  "schema_version": 3,
+  "target": "i.MX952 EVK",
+  "source": {
+    "repository": "nxp-imx/imx-sm",
+    "commit": "44f76dcb32945a60e08ea0133700b820349efbd3",
+    "generated_agent_config": {
+      "path": "configs/mx952evk/config_scmi.h",
+      "git_blob_sha": "75db444cccfdef07de458cfc210211ee7de13796"
+    },
+    "generated_transport_config": {
+      "path": "configs/mx952evk/config_smt.h",
+      "git_blob_sha": "ca8e3b640d195a7dd8571f853ff319bc9a09ea8c"
+    },
+    "fusa_protocol": {
+      "path": "sm/rpc/scmi/rpc_scmi_fusa.c",
+      "git_blob_sha": "3b246af8595ca3d693b85230bf035bc5b0059135"
+    },
+    "fusa_api": {
+      "path": "sm/rpc/scmi/rpc_scmi_fusa.h",
+      "git_blob_sha": "faa9f088795f72889acb40f320c37c45c7bb2145"
+    },
+    "fault_header": {
+      "path": "devices/MIMX952/sm/dev_sm_fault.h",
+      "git_blob_sha": "d74d8869c76c528d96ffe79d34d6bb7fc66f6920"
+    }
+  },
+  "protocol": {
+    "id": "0x83",
+    "version": "0x00010000",
+    "visible_agents": [0],
+    "agent_names": {"0": "M7"},
+    "permission": "ALL",
+    "seenv_id": 1,
+    "implemented_commands": [
+      "PROTOCOL_VERSION",
+      "PROTOCOL_ATTRIBUTES",
+      "PROTOCOL_MESSAGE_ATTRIBUTES",
+      "FUSA_FEENV_STATE_GET",
+      "FUSA_FEENV_STATE_NOTIFY",
+      "FUSA_SEENV_STATE_GET",
+      "FUSA_SEENV_STATE_SET",
+      "FUSA_FAULT_GET",
+      "FUSA_FAULT_SET",
+      "FUSA_FAULT_GROUP_NOTIFY",
+      "FUSA_SCHECK_EVNTRIG",
+      "FUSA_SCHECK_TEST_EXEC",
+      "NEGOTIATE_PROTOCOL_VERSION"
+    ],
+    "not_implemented_commands": [],
+    "scheck_overlay": {
+      "model": "scripts/pydev/nxp_imx952_system_manager_fusa_scheck.py",
+      "contract": "tools/imx952-digital-twin/equivalence/contracts/imx952_fusa_scheck_contract.json",
+      "checker": "tools/imx952-digital-twin/equivalence/check_fusa_scheck_contract.py"
+    }
+  },
+  "inventory": {
+    "global_fault_count": 89,
+    "seenv_id_count": 1,
+    "seenv_lm_count": 1,
+    "m7_permitted_faults": [
+      {"id": 21, "name": "WDOG5"},
+      {"id": 22, "name": "SW0"},
+      {"id": 23, "name": "SW1"},
+      {"id": 38, "name": "M7_LOCKUP"},
+      {"id": 39, "name": "M7_RESET"}
+    ]
+  },
+  "fault_semantics": {
+    "get": "Return flags bit 0 as the current boolean fault state; deny globally valid faults outside the exact M7 permission set; return NOT_FOUND outside IDs 0..88.",
+    "set": "Use flags[1:0] != 0 as asserted/set and flags[1:0] == 0 as clear, matching the pinned NXP implementation.",
+    "clear_notification": "A successful subscribed clear emits FUSA_FAULT_EVENT with state flag 0.",
+    "recovery_notification": "A subscribed deterministic recovery/set input emits FUSA_FAULT_EVENT with state flag 1.",
+    "group_notify": "Apply a 32-fault window, permission-filter requested bits, and return the effective enabled mask. A mixed permitted/unpermitted request succeeds when at least one permitted fault is updated.",
+    "fault_event_payload": ["fault_id", "state_flag"]
+  },
+  "scheck_semantics": {
+    "event_trigger": "Accept the M7 S-EENV request and return success. The pinned NXP LMM backend has no additional hardware-side behavior.",
+    "test_exec": "Accept and record the caller-provided targetTestId. The pinned NXP LMM backend performs no range validation or SCST execution.",
+    "evidence": "Deterministic invocation counters and last-target capture are test instrumentation only."
+  },
+  "priority_transport": {
+    "agent": "M7",
+    "local_channel": 2,
+    "global_smt_channel": 2,
+    "mu_instance": 0,
+    "mu_doorbell": 2,
+    "scmi_message_type": 3,
+    "notification_message_ids": {
+      "FUSA_FEENV_STATE_EVENT": 0,
+      "FUSA_FAULT_EVENT": 2
+    },
+    "queue_limit": 8,
+    "queue_payload": "message ID plus ordered payload words",
+    "busy_channel_policy": "Preserve mixed state/fault event order and dispatch the next event only after the agent marks SMT channel 2 free."
+  },
+  "deterministic_evidence_inputs": {
+    "feenv_state_trigger": {
+      "offset": "0x1E4",
+      "layout": "Bits[7:0] F-EENV state; Bits[15:8] MSEL mode."
+    },
+    "fault_trigger": {
+      "offset": "0x1F8",
+      "layout": "Bits[7:0] fault ID; Bit[8] resulting state/event flag."
+    },
+    "classification": "Test instrumentation only; not an i.MX952 production register or physical fault source."
+  },
+  "qualification_evidence": [
+    "scripts/pydev/nxp_imx952_system_manager_fusa.py",
+    "scripts/pydev/nxp_imx952_system_manager_fusa_scheck.py",
+    "tests/platforms/NXP_IMX952_FUSA_PRIORITY.robot",
+    "tests/platforms/NXP_IMX952_FUSA_FAULTS.robot",
+    "tests/platforms/NXP_IMX952_FUSA_SCHECK.robot"
+  ],
+  "qualification_boundary": [
+    "This contract proves deterministic functional M7 FuSa state, source-permitted fault commands, the complete pinned software-visible command inventory, and ordered priority P2A delivery.",
+    "The global 89-fault inventory is preserved while mutation, get and notification configuration are restricted to the exact five M7-permitted faults.",
+    "S-check command acceptance matches the pinned NXP LMM backend boundary and does not claim SCST/SAF execution.",
+    "The deterministic triggers and evidence registers are test instrumentation and do not claim FCCU, safety-island or physical fault-source generation.",
+    "Physical fault detection, escalation, recovery outcomes, reset reactions, SCST diagnostic coverage, MU/NVIC latency, queue timing, safety reaction timing and propagation remain hardware-correlation gates."
+  ]
+}

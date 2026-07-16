@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "name": "imx952-evk-b0-physical-reference",
+  "target": {
+    "kind": "physical_board",
+    "soc": "i.MX952",
+    "revision": "B0",
+    "board": "i.MX952 EVK",
+    "board_serial": "REPLACE_WITH_BOARD_SERIAL",
+    "firmware_baseline": "REPLACE_WITH_BASELINE_ID"
+  },
+  "observations": [
+    {
+      "key": "boot.stage_sequence",
+      "source_note": "Adapt the regex to the selected production UART instrumentation without changing stage semantics.",
+      "source": {
+        "type": "text_regex_all",
+        "path": "../../../../evidence/physical/uart-boot.log",
+        "pattern": "^DT_STAGE: ([A-Z0-9_]+)$"
+      }
+    },
+    {
+      "key": "boot.container_version",
+      "source": {
+        "type": "literal",
+        "value": 2
+      }
+    },
+    {
+      "key": "boot.atf_load_address",
+      "source": {
+        "type": "literal",
+        "value": "0x8A200000"
+      }
+    },
+    {
+      "key": "boot.uboot_load_address",
+      "source": {
+        "type": "literal",
+        "value": "0x90200000"
+      }
+    },
+    {
+      "key": "boot.m7_tcm_alias",
+      "source": {
+        "type": "literal",
+        "value": "0x303C0000"
+      }
+    },
+    {
+      "key": "sm.scmi.protocols",
+      "source_note": "Replace argv with the production board-side SCMI inventory command or a lab-host parser.",
+      "source": {
+        "type": "command_json",
+        "argv": [
+          "ssh",
+          "root@REPLACE_WITH_BOARD_HOST",
+          "cat /run/imx952-equivalence/scmi-protocols.json"
+        ],
+        "timeout_seconds": 30
+      }
+    },
+    {
+      "key": "sm.m7.lifecycle",
+      "source": {
+        "type": "text_regex_all",
+        "path": "../../../../evidence/physical/m7-lifecycle.log",
+        "pattern": "^M7_STATE: ([A-Z_]+)$"
+      }
+    },
+    {
+      "key": "ele.firmware_status",
+      "source": {
+        "type": "text_regex",
+        "path": "../../../../evidence/physical/ele.log",
+        "pattern": "^ELE_FW_STATUS: (0x[0-9A-Fa-f]+)$",
+        "convert": "int"
+      }
+    },
+    {
+      "key": "timing.boot_to_uboot_ms",
+      "required": false,
+      "unit": "ms",
+      "source": {
+        "type": "text_regex",
+        "path": "../../../../evidence/physical/timing.log",
+        "pattern": "^BOOT_TO_UBOOT_MS: ([0-9.]+)$",
+        "convert": "float"
+      }
+    },
+    {
+      "key": "timing.m7_release_us",
+      "required": false,
+      "unit": "us",
+      "source": {
+        "type": "text_regex",
+        "path": "../../../../evidence/physical/timing.log",
+        "pattern": "^M7_RELEASE_US: ([0-9.]+)$",
+        "convert": "float"
+      }
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "schema_version": 2,
+  "evidence_class": "production",
+  "target": {
+    "soc": "i.MX952",
+    "revision": "B0",
+    "board": "i.MX952 EVK"
+  },
+  "container_version": 2,
+  "source_baseline": {
+    "imx_mkimage_commit": "1b577853ae1afe1f26cdef27548da52fb424af48"
+  },
+  "artifacts": [
+    {
+      "name": "final_boot_image",
+      "path": "flash.bin",
+      "required": true,
+      "sha256": "",
+      "container_validation": {
+        "required_stages": ["ATF", "U_BOOT"]
+      }
+    },
+    {
+      "name": "ahab_container",
+      "path": "mx952b0-ahab-container.img",
+      "required": true,
+      "sha256": "",
+      "container_validation": {
+        "required_stages": []
+      }
+    },
+    {
+      "name": "u_boot_atf_container",
+      "path": "u-boot-atf-container.img",
+      "required": true,
+      "execution_source": true,
+      "sha256": "",
+      "container_validation": {
+        "offsets": ["0x0"],
+        "required_stages": ["ATF", "U_BOOT"]
+      }
+    },
+    {
+      "name": "a55_oei_ddr",
+      "path": "a55-oei-ddrfw.bin",
+      "required": true,
+      "sha256": ""
+    },
+    {
+      "name": "m33_oei_ddr",
+      "path": "m33-oei-ddrfw.bin",
+      "required": false,
+      "load_address": "0x1FFC0000",
+      "entry_address": "0x1FFC0001",
+      "sha256": ""
+    },
+    {
+      "name": "u_boot_spl",
+      "path": "u-boot-spl.bin",
+      "required": true,
+      "load_address": "0x20480000",
+      "sha256": ""
+    },
+    {
+      "name": "arm_trusted_firmware",
+      "path": "bl31.bin",
+      "required": true,
+      "load_address": "0x8A200000",
+      "sha256": ""
+    },
+    {
+      "name": "u_boot",
+      "path": "u-boot.bin",
+      "required": true,
+      "load_address": "0x90200000",
+      "sha256": ""
+    },
+    {
+      "name": "m7_firmware",
+      "path": "m7_image.bin",
+      "required": false,
+      "load_address": "0x00000000",
+      "a55_alias": "0x303C0000",
+      "sha256": ""
+    }
+  ],
+  "readiness_policy": {
+    "required_artifact_hashes": "Every required artifact must have a non-empty matching SHA-256 before execution readiness can pass.",
+    "container_structure": "Every artifact with container_validation must pass the pinned B0 container-v2 structure and descriptor hash gate.",
+    "stage_presence": "flash.bin and u-boot-atf-container.img must contain images destined for ATF 0x8A200000 and U-Boot 0x90200000.",
+    "execution_source": "Exactly one verified container must be marked execution_source for the post-authentication ATF/U-Boot plan.",
+    "claim_boundary": "READY_FOR_EXECUTION is not a production boot, authentication, DDR training, ATF handoff, U-Boot handoff or physical-equivalence result."
+  }
+}

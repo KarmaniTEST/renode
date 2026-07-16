@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "target": {
+    "soc": "i.MX952",
+    "revision": "B0",
+    "board": "i.MX952 EVK"
+  },
+  "accepted_backend_kinds": [
+    "renode_native",
+    "verilator",
+    "systemc",
+    "vendor_executable",
+    "fpga_emulation",
+    "hardware_proxy"
+  ],
+  "integration_sources": [
+    {
+      "repository": "antmicro/renode-verilator-integration",
+      "purpose": "Renode co-simulation with Verilog models"
+    },
+    {
+      "repository": "antmicro/renode-dpi-examples",
+      "purpose": "Renode Verilog DPI integration examples"
+    },
+    {
+      "repository": "antmicro/renode-systemc-examples",
+      "purpose": "Renode SystemC co-simulation examples"
+    }
+  ],
+  "subsystems": {
+    "gic_its_msi": {
+      "enabled": false,
+      "backend_kind": "",
+      "source": {"repository": "", "commit": ""},
+      "artifact": {"path": "", "sha256": ""},
+      "mandatory_capabilities": [
+        "gits_register_model",
+        "command_queue",
+        "device_and_collection_tables",
+        "lpi_configuration_and_pending_tables",
+        "device_id_event_id_translation",
+        "msi_write_translation",
+        "lpi_injection_to_target_redistributor",
+        "error_and_invalid_command_paths",
+        "production_linux_driver_execution"
+      ],
+      "provided_capabilities": [],
+      "mmio_ranges": [],
+      "interrupt_routes": [],
+      "deterministic_tests": [],
+      "physical_evidence": null
+    },
+    "netc": {
+      "enabled": false,
+      "backend_kind": "",
+      "source": {"repository": "", "commit": ""},
+      "artifact": {"path": "", "sha256": ""},
+      "mandatory_capabilities": [
+        "register_model",
+        "descriptor_dma",
+        "interrupts",
+        "mdio_and_phy",
+        "ethernet_tx_rx",
+        "switching",
+        "tsn_scheduling",
+        "rpmsg_partitioning",
+        "production_linux_driver_execution"
+      ],
+      "provided_capabilities": [],
+      "mmio_ranges": [],
+      "interrupt_routes": [],
+      "deterministic_tests": [],
+      "physical_evidence": null
+    },
+    "usb": {
+      "enabled": false,
+      "backend_kind": "",
+      "source": {"repository": "", "commit": ""},
+      "artifact": {"path": "", "sha256": ""},
+      "mandatory_capabilities": [
+        "controller_register_model",
+        "descriptor_dma",
+        "interrupts",
+        "host_mode",
+        "device_mode",
+        "endpoint_state",
+        "type_c_role_state",
+        "production_linux_driver_execution"
+      ],
+      "provided_capabilities": [],
+      "mmio_ranges": [],
+      "interrupt_routes": [],
+      "deterministic_tests": [],
+      "physical_evidence": null
+    },
+    "pcie_hsio": {
+      "enabled": false,
+      "backend_kind": "",
+      "source": {"repository": "", "commit": ""},
+      "artifact": {"path": "", "sha256": ""},
+      "mandatory_capabilities": [
+        "root_complex_register_model",
+        "ecam_configuration_space",
+        "link_training_and_state",
+        "bar_mapping",
+        "dma",
+        "msi_and_msix",
+        "iommu_or_smmu_interaction",
+        "production_linux_driver_execution",
+        "endpoint_workload_execution"
+      ],
+      "provided_capabilities": [],
+      "mmio_ranges": [],
+      "interrupt_routes": [],
+      "deterministic_tests": [],
+      "physical_evidence": null
+    },
+    "gpu": {
+      "enabled": false,
+      "backend_kind": "",
+      "source": {"repository": "", "commit": ""},
+      "artifact": {"path": "", "sha256": ""},
+      "mandatory_capabilities": [
+        "execution_backend",
+        "command_submission",
+        "memory_and_mmu_semantics",
+        "interrupts",
+        "production_driver_execution",
+        "deterministic_render_or_compute_output"
+      ],
+      "provided_capabilities": [],
+      "mmio_ranges": [],
+      "interrupt_routes": [],
+      "deterministic_tests": [],
+      "physical_evidence": null
+    },
+    "npu": {
+      "enabled": false,
+      "backend_kind": "",
+      "source": {"repository": "", "commit": ""},
+      "artifact": {"path": "", "sha256": ""},
+      "mandatory_capabilities": [
+        "execution_backend",
+        "command_submission",
+        "tensor_memory_semantics",
+        "interrupts",
+        "production_runtime_execution",
+        "deterministic_tensor_output"
+      ],
+      "provided_capabilities": [],
+      "mmio_ranges": [],
+      "interrupt_routes": [],
+      "deterministic_tests": [],
+      "physical_evidence": null
+    }
+  },
+  "physical_evidence_contract": {
+    "identity_fields": ["board_identity", "silicon_identity"],
+    "file_fields": [
+      "firmware_manifest",
+      "test_definition",
+      "digital_twin_result",
+      "physical_board_result",
+      "comparison_report"
+    ],
+    "required_fields": ["comparison_result", "timing_tolerances"],
+    "required_comparison_result": "PASS"
+  },
+  "claim_boundary": [
+    "A disabled or incomplete backend keeps its subsystem BLOCKED.",
+    "A synthetic fixture may validate the gate implementation but is not subsystem evidence.",
+    "Functional backend readiness does not imply physical or timing equivalence.",
+    "Full physical readiness verifies immutable evidence files, EVK identity, PASS differential results and timing tolerances for every subsystem."
+  ]
+}

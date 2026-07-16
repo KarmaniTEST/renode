@@ -1,10 +1,15 @@
 # NXP i.MX 952 Digital Twin
 
-This directory provides the operator-facing entry point for the experimental NXP i.MX 952 EVK virtual platform in this branch.
+This directory is the operator-facing entry point for the NXP i.MX952 EVK digital twin program.
 
-The goal is a repeatable engineering digital twin for early software development, heterogeneous A55/M7 integration and firmware-service validation. It is not a cycle-accurate replacement for the physical EVK.
+The repository now carries two intentionally separate execution profiles:
 
-## Implemented platform scope
+1. **Qualified engineering twin** — stable, deterministic and ready for professional software development within its documented scope.
+2. **Full-equivalence candidate** — stricter source-derived System Manager behavior and evidence-driven qualification infrastructure used to progress toward physical-hardware equivalence.
+
+The second profile is not labeled physically equivalent until the hardware-correlated release gate passes.
+
+## Implemented engineering platform scope
 
 - 4x Cortex-A55 application cores
 - Cortex-M7 real-time core with ITCM and DTCM
@@ -22,94 +27,227 @@ The goal is a repeatable engineering digital twin for early software development
 - dual-endpoint MU7 A55 <-> M7 messaging
 - deterministic A55/M7 firmware and Robot Framework regression tests
 
+## Full-equivalence candidate additions
+
+The candidate profile adds a source-derived System Manager implementation without destabilizing the qualified engineering platform:
+
+- M7, AP-S and AP-NS agent identities
+- independent AP-S and AP-NS SMT channels
+- source-derived power-domain IDs and permissions
+- source-derived performance-domain IDs and permissions
+- SCMI Power version 3.1
+- SCMI System Power version 2.1
+- SCMI Performance version 4.0
+- SCMI Clock version 3.0
+- source-derived AP-S/AP-NS/M7 permission regression tests
+- authoritative source baseline pinned to exact NXP revisions
+- physical-board evidence collector
+- digital-twin vs hardware comparator
+- production boot-artifact SHA-256 manifest validator
+- fail-closed full-physical release gate
+
 ## Quick start
 
-From the repository root:
+### Qualified engineering demo
 
 ```bash
 bash tools/imx952-digital-twin/run.sh demo
 ```
 
-On Windows PowerShell:
+### Qualified engineering platform
+
+```bash
+bash tools/imx952-digital-twin/run.sh platform
+```
+
+### Full-equivalence development candidate
+
+```bash
+bash tools/imx952-digital-twin/run.sh full-platform
+```
+
+On Windows PowerShell the engineering launch path remains:
 
 ```powershell
 ./tools/imx952-digital-twin/run.ps1 demo
 ```
 
-The demo loads deterministic A55 and M7 firmware and prepares the heterogeneous lifecycle scenario. Use the Renode Monitor to run, inspect memory and debug both processing domains. The Renode scripts use `$ORIGIN`-relative paths, so the demo does not depend on the caller's working directory.
+The full candidate can be opened directly with:
+
+```powershell
+renode --console scripts/single-node/nxp_imx952_evk_full.resc
+```
 
 ## Qualification
 
-Run the complete i.MX 952 regression suite:
+### Stable engineering qualification
 
 ```bash
-bash tools/imx952-digital-twin/qualify.sh
-```
-
-The script supports three execution modes:
-
-```bash
-bash tools/imx952-digital-twin/qualify.sh auto
-bash tools/imx952-digital-twin/qualify.sh local
 bash tools/imx952-digital-twin/qualify.sh docker
 ```
 
-`auto` uses a built Renode runtime from this repository when available and otherwise falls back to the official `antmicro/renode:nightly-dotnet` container. Docker qualification mounts the custom i.MX952 Python peripherals into the clean Renode runtime so the same checked-in model files are tested without modifying the host installation.
-
-The qualification target is:
+This runs:
 
 ```text
 tests/platforms/NXP_IMX952.robot
 ```
 
-The dedicated GitHub Actions workflow `.github/workflows/imx952-digital-twin.yml` runs the same suite for this branch and for changes touching the i.MX 952 model. Every CI attempt preserves `imx952-qualification.log` as a workflow artifact so failures can be diagnosed and reproduced. The NXP SiP auxiliary-core path uses Renode's current ARMv8 PSCI SMC conduit and reset-macro pattern, with lifecycle state kept in the persistent PSCI Python-engine scope rather than attached dynamically to CPU wrappers.
+### Complete professional qualification package
 
-## Supported engineering use cases
+Linux:
 
-| Use case | Status |
-|---|---|
-| A55 bare-metal execution | Supported |
-| M7 bare-metal execution | Supported |
-| A55/M7 shared-memory interaction | Supported |
-| A55-controlled M7 start/stop | Supported |
-| A55 SCMI System Manager access | Supported subset |
-| M7 SCMI System Manager access | Supported subset |
-| ELE early-boot interactions | Supported subset |
-| A55/M7 MU messaging | Supported |
-| deterministic regression testing | Supported |
-| interactive firmware debugging | Supported |
-| full Boot ROM emulation | Not implemented |
-| complete ELE/System Manager firmware surface | Not implemented |
-| complete NETC/PCIe/USB/GPU/NPU multimedia model | Not implemented |
-| cycle-accurate timing/performance | Out of scope |
+```bash
+bash tools/imx952-digital-twin/qualify-full.sh docker engineering
+```
+
+Windows PowerShell:
+
+```powershell
+./tools/imx952-digital-twin/qualify-full.ps1 -RuntimeMode docker -QualificationMode engineering
+```
+
+This validates:
+
+- equivalence framework unit tests
+- authoritative source and target baseline
+- strict release-gate behavior
+- stable engineering regression suite
+- full-equivalence System Manager candidate regression suite
+- operator entry points
+- clean official Renode nightly runtime execution
+
+The Renode qualification targets are:
+
+```text
+tests/platforms/NXP_IMX952.robot
+tests/platforms/NXP_IMX952_FULL_EQUIVALENCE.robot
+```
+
+## Full physical-equivalence qualification
+
+Full physical qualification requires evidence from the exact pinned i.MX952 EVK B0 reference and the corresponding digital-twin run.
+
+Linux:
+
+```bash
+export IMX952_REFERENCE_EVIDENCE=/path/to/physical-board.json
+export IMX952_CANDIDATE_EVIDENCE=/path/to/digital-twin.json
+bash tools/imx952-digital-twin/qualify-full.sh docker full-physical
+```
+
+Windows PowerShell:
+
+```powershell
+./tools/imx952-digital-twin/qualify-full.ps1 `
+    -RuntimeMode docker `
+    -QualificationMode full-physical `
+    -ReferenceEvidence C:\evidence\physical-board.json `
+    -CandidateEvidence C:\evidence\digital-twin.json
+```
+
+The full-physical gate checks:
+
+- exact SoC, board and silicon-revision identity
+- pinned production firmware identity
+- physical-board vs twin evidence comparison
+- zero required comparison failures
+- zero target mismatches
+- every mandatory subsystem at `FULL_EQUIVALENCE`
+- no unresolved subsystem gates
+
+If any of these conditions is missing, the release verdict is `BLOCKED` by design.
+
+## Production boot artifact identity
+
+Create a project-specific copy of:
+
+```text
+tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_boot_artifacts.template.json
+```
+
+Then validate and fingerprint the exact artifacts:
+
+```bash
+python3 tools/imx952-digital-twin/equivalence/validate_boot_artifacts.py \
+    --manifest /path/to/boot-artifacts.json \
+    --root /path/to/artifact-directory \
+    --output /path/to/boot-artifact-report.json
+```
+
+The manifest covers the production-image baseline including AHAB, OEI/DDR, SPL, ATF, U-Boot and optional M7 firmware inputs. The resulting hashes are qualification evidence and must be identical between the physical-board and digital-twin campaign.
+
+## Evidence collection and comparison
+
+The common collector can consume files, UART/log captures, commands, SSH/lab-control wrappers and artifact hashes while emitting one normalized evidence format for both targets.
+
+Core tools:
+
+```text
+tools/imx952-digital-twin/equivalence/collect_evidence.py
+tools/imx952-digital-twin/equivalence/compare_evidence.py
+tools/imx952-digital-twin/equivalence/qualification_gate.py
+```
+
+Pinned target and maturity state:
+
+```text
+tools/imx952-digital-twin/equivalence/AUTHORITATIVE_BASELINE.json
+tools/imx952-digital-twin/equivalence/EQUIVALENCE_STATUS.json
+```
+
+## Supported use cases and qualification state
+
+| Use case | Engineering twin | Full-equivalence candidate |
+|---|---|---|
+| A55 bare-metal execution | Qualified | Included |
+| M7 bare-metal execution | Qualified | Included |
+| A55/M7 shared-memory interaction | Qualified | Included |
+| A55-controlled M7 start/stop | Qualified | Included |
+| A55 SCMI access | Qualified subset | Source-derived AP-S/AP-NS candidate |
+| M7 SCMI access | Qualified subset | Source-derived M7 candidate |
+| SCMI System Power | Not in stable profile | Candidate implemented/tested |
+| SCMI Performance | Not in stable profile | Candidate implemented/tested |
+| ELE early-boot interactions | Qualified subset | Physical differential pending |
+| deterministic regression testing | Qualified | Qualified infrastructure |
+| production Boot ROM / AHAB / OEI / DDR chain | Not qualified | Evidence and artifact gates prepared |
+| GIC ITS/MSI | Not modeled | Pending |
+| NETC | Not modeled | Pending |
+| USB | Not modeled | Pending |
+| PCIe/HSIO | Not modeled | Pending |
+| GPU execution backend | Not modeled | Pending vendor/co-simulation backend |
+| NPU execution backend | Not modeled | Pending vendor/co-simulation backend |
+| cycle/timing equivalence | Not claimed | Hardware correlation required |
 
 ## Main entry points
 
-- Platform: `platforms/boards/nxp_imx952_evk.repl`
-- Base script: `scripts/single-node/nxp_imx952_evk.resc`
-- Heterogeneous demo: `scripts/single-node/nxp_imx952_evk_heterogeneous_demo.resc`
-- Regression suite: `tests/platforms/NXP_IMX952.robot`
+Engineering profile:
 
-## Firmware integration
+```text
+platforms/boards/nxp_imx952_evk.repl
+scripts/single-node/nxp_imx952_evk.resc
+scripts/single-node/nxp_imx952_evk_heterogeneous_demo.resc
+tests/platforms/NXP_IMX952.robot
+```
 
-The current deterministic firmware is intentionally small and self-contained so that the digital twin can be qualified without external binary downloads.
+Full-equivalence candidate:
 
-For application integration:
-
-1. Load the A55 ELF/HEX/BIN into the DDR or SRAM address expected by the software.
-2. Set the A55 reset/entry address when the image format does not provide it automatically.
-3. Load the M7 image into ITCM/DTCM or another modeled memory region.
-4. Release the M7 through the modeled NXP SiP service or NXP SCMI CPU protocol when validating the production lifecycle flow.
-5. Add the workload to `tests/platforms/NXP_IMX952.robot` or a dedicated Robot suite to keep the scenario reproducible.
-
-A full NXP boot-container / Boot ROM chain is deliberately not claimed as supported until the missing boot services and devices are modeled and qualified end to end.
+```text
+platforms/boards/nxp_imx952_evk_full.repl
+scripts/single-node/nxp_imx952_evk_full.resc
+scripts/pydev/nxp_imx952_system_manager_full.py
+tests/platforms/NXP_IMX952_FULL_EQUIVALENCE.robot
+```
 
 ## Qualified status
 
+### Engineering twin
+
 **Qualified for the documented engineering scope on 2026-07-15.**
 
-The complete `tests/platforms/NXP_IMX952.robot` suite passed from a clean official Renode nightly runtime with **8/8 deterministic tests successful**. The qualification covered A55/M7 execution and shared memory, the real A55 SiP SMC lifecycle path, A55 and M7 SCMI roles, NXP SCMI CPU control, ELE early-boot services, LPI2C7, and bidirectional MU7 messaging.
+The complete stable regression suite passed from a clean official Renode nightly runtime with 8/8 deterministic tests successful. The qualification covers A55/M7 execution and shared memory, the real A55 SiP SMC lifecycle path, A55 and M7 SCMI roles, NXP SCMI CPU control, ELE early-boot services, LPI2C7 and bidirectional MU7 messaging.
 
-The same CI gate also verified the Linux launcher, Windows launcher, qualification launcher, operator guide, heterogeneous demo entry point, and preserved qualification evidence.
+### Full-equivalence candidate
 
-This qualification applies to the supported engineering use cases listed above. It does not imply full physical-hardware equivalence, complete SoC peripheral coverage, or cycle-accurate timing.
+The source-derived System Manager candidate and its AP-S/AP-NS/M7 permission regression tests pass in the same clean-runtime CI gate together with the stable suite.
+
+This is a **qualified development candidate**, not yet a `FULL_PHYSICAL_EQUIVALENCE` release. The remaining physical-equivalence claims are deliberately blocked until production boot-chain execution, complete ELE/System Manager coverage, GIC ITS/MSI, NETC, USB/PCIe, execution-capable GPU/NPU backends and silicon-correlated timing evidence are present.

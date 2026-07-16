@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "target": "i.MX952 EVK B0",
+  "source": {
+    "repository": "nxp-imx/uboot-imx",
+    "commit": "6eeef838dac4ddbc06ff14450531a95e8c5cb346",
+    "api_header": {
+      "path": "arch/arm/include/asm/mach-imx/ele_api.h",
+      "git_blob_sha": "989c93ce98dcd7758931fa9e06610e2755d26f6b"
+    },
+    "api_implementation": {
+      "path": "drivers/misc/imx_ele/ele_api.c",
+      "git_blob_sha": "75b3e2df6ce457e12aebdffc32ea8ce8d8fb90b0"
+    }
+  },
+  "transport": {
+    "command_version": "0x06",
+    "firmware_rng_version": "0x07",
+    "command_tag": "0x17",
+    "response_tag": "0xE1",
+    "tx_registers": 4,
+    "rx_registers": 4,
+    "maximum_accessible_address": "0xE0000000"
+  },
+  "safe_default_commands": [
+    {"id": "0x01", "name": "PING"},
+    {"id": "0x12", "name": "VOLT_CHANGE_START"},
+    {"id": "0x13", "name": "VOLT_CHANGE_FINISH"},
+    {"id": "0x97", "name": "READ_FUSE", "scope": "explicit deterministic readable IDs only"},
+    {"id": "0x9D", "name": "GET_FW_VERSION", "scope": "unknown values returned as zero, never fabricated"},
+    {"id": "0xA2", "name": "GET_EVENTS", "scope": "empty or test-injected events"},
+    {"id": "0xA3", "name": "START_RNG", "scope": "functional state only"},
+    {"id": "0xA4", "name": "GET_TRNG_STATE", "scope": "functional ready state only"},
+    {"id": "0xC5", "name": "GET_FW_STATUS"},
+    {"id": "0xDA", "name": "GET_INFO", "scope": "deterministic non-secret SoC metadata"},
+    {"id": "0xF3", "name": "READ_SHADOW", "scope": "explicit deterministic readable IDs only"}
+  ],
+  "test_only_commands": [
+    {
+      "id": "0xCD",
+      "name": "GET_RNG",
+      "default_result": "ELE_DISABLED_FEATURE_FAILURE_IND 0xB6",
+      "enable_offset": "0x3F0",
+      "enable_magic": "0x54455354",
+      "maximum_bytes": 4096,
+      "classification": "deterministic non-cryptographic qualification stream only"
+    }
+  ],
+  "secure_default_denied_commands": [
+    "FW_AUTH", "OEM_CONTAINER_AUTH", "VERIFY_IMAGE", "RELEASE_CONTAINER",
+    "WRITE_SECURE_FUSE", "FORWARD_LIFECYCLE", "RETURN_LIFECYCLE",
+    "COMMIT", "DERIVE_KEY", "GENERATE_DEK_BLOB", "BLOB",
+    "WRITE_FUSE", "ATTEST", "WRITE_SHADOW"
+  ],
+  "failure_policy": {
+    "security_sensitive": "ELE_PERMISSION_DENIED_FAILURE_IND 0xF3",
+    "unknown_message": "ELE_INVALID_MESSAGE_FAILURE_IND 0xF4",
+    "unknown_fuse": "ELE_BAD_FUSE_ID_FAILURE_IND 0xF6",
+    "invalid_address": "ELE_WRONG_ADDRESS_FAILURE_IND 0xB4",
+    "rng_disabled": "ELE_DISABLED_FEATURE_FAILURE_IND 0xB6",
+    "rng_not_started": "ELE_RNG_NOT_STARTED_FAILURE_IND 0xB8",
+    "invalid_sequence": "ELE_INVALID_OPERATION_FAILURE_IND 0xC0"
+  },
+  "executable": {
+    "model": "scripts/pydev/nxp_imx952_ele.py",
+    "runtime_test": "tests/platforms/NXP_IMX952_ELE_POLICY.robot",
+    "checker": "tools/imx952-digital-twin/equivalence/check_ele_policy_contract.py",
+    "workflow": ".github/workflows/imx952-ele.yml"
+  },
+  "qualification_boundary": [
+    "No authentication, lifecycle, fuse-programming, key, blob or attestation command returns success without a real secure backend.",
+    "Test RNG is disabled by default and is explicitly deterministic and non-cryptographic.",
+    "GET_FW_VERSION returns zero/unknown metadata instead of fabricating production firmware identity.",
+    "This policy does not prove AHAB authentication, ELE firmware equivalence, secure lifecycle, fuse contents, entropy quality or physical security."
+  ]
+}

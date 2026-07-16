@@ -1,0 +1,83 @@
+using sysbus
+
+$name?="nxp-imx952-evk-full"
+mach create $name
+machine LoadPlatformDescription $ORIGIN/../../platforms/boards/nxp_imx952_evk_full.repl
+
+# Keep the same validated PSCI/SiP behavior as the stable engineering twin while
+# the production Boot ROM path is developed separately.
+macro reset
+"""
+    a55Cluster.a55_0 PSCIEmulationMethod SMC
+    m7 IsHalted true
+"""
+
+a55Cluster.a55_0 AddCustomPSCIHandler 0xC2000005 """
+from Antmicro.Renode.Peripherals.CPU import RegisterValue
+
+machine = self.GetMachine()
+operation = self.GetRegisterUlong(1)
+address = self.GetRegisterUlong(2)
+core_id = self.GetRegisterUlong(3)
+
+try:
+    imx952M7Prepared
+except NameError:
+    imx952M7Prepared = False
+
+try:
+    imx952M7Started
+except NameError:
+    imx952M7Started = False
+
+try:
+    imx952M7ResetAddress
+except NameError:
+    imx952M7ResetAddress = 0
+
+if core_id != 1 and core_id != 7:
+    self.SetRegisterUlong(0, 0xFFFFFFFFFFFFFFFF)
+else:
+    m7 = None
+    for cpu in machine.SystemBus.GetCPUs():
+        if cpu.Architecture == "arm-m":
+            m7 = cpu
+            break
+
+    if m7 is None:
+        self.SetRegisterUlong(0, 0xFFFFFFFFFFFFFFFF)
+    else:
+        if operation == 0:
+            vector_address = address if address != 0 else imx952M7ResetAddress
+            stack_pointer = machine.SystemBus.ReadDoubleWord(vector_address)
+            reset_handler = machine.SystemBus.ReadDoubleWord(vector_address + 4)
+            if stack_pointer == 0 or reset_handler == 0:
+                self.SetRegisterUlong(0, 0xFFFFFFFFFFFFFFFF)
+            else:
+                m7.SP = RegisterValue.Create(stack_pointer, 32)
+                m7.PC = RegisterValue.Create(reset_handler & 0xFFFFFFFE, 32)
+                m7.IsHalted = False
+                imx952M7Prepared = True
+                imx952M7Started = True
+                self.SetRegisterUlong(0, 0)
+        elif operation == 1:
+            self.SetRegisterUlong(0, 1 if imx952M7Started and not m7.IsHalted else 0)
+        elif operation == 2:
+            m7.IsHalted = True
+            imx952M7Started = False
+            self.SetRegisterUlong(0, 0)
+        elif operation == 3:
+            imx952M7ResetAddress = address
+            self.SetRegisterUlong(0, 0)
+        elif operation == 4:
+            m7.IsHalted = True
+            imx952M7Prepared = True
+            imx952M7Started = False
+            self.SetRegisterUlong(0, 0)
+        elif operation == 5:
+            self.SetRegisterUlong(0, 1 if imx952M7Prepared else 0)
+        else:
+            self.SetRegisterUlong(0, 0xFFFFFFFFFFFFFFFF)
+"""
+
+runMacro $reset

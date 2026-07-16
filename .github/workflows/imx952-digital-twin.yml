@@ -6,20 +6,21 @@ on:
     branches:
       - imx952-a55-m7-support
       - imx952-digital-twin-ready
+      - imx952-full-equivalence-program
     paths:
-      - "platforms/boards/nxp_imx952_evk.repl"
+      - "platforms/boards/nxp_imx952_evk*.repl"
       - "scripts/pydev/nxp_imx952_*.py"
       - "scripts/single-node/nxp_imx952_*.resc"
-      - "tests/platforms/NXP_IMX952.robot"
+      - "tests/platforms/NXP_IMX952*.robot"
       - "tests/platforms/NXP_IMX952/**"
       - "tools/imx952-digital-twin/**"
       - ".github/workflows/imx952-digital-twin.yml"
   pull_request:
     paths:
-      - "platforms/boards/nxp_imx952_evk.repl"
+      - "platforms/boards/nxp_imx952_evk*.repl"
       - "scripts/pydev/nxp_imx952_*.py"
       - "scripts/single-node/nxp_imx952_*.resc"
-      - "tests/platforms/NXP_IMX952.robot"
+      - "tests/platforms/NXP_IMX952*.robot"
       - "tests/platforms/NXP_IMX952/**"
       - "tools/imx952-digital-twin/**"
       - ".github/workflows/imx952-digital-twin.yml"
@@ -37,26 +38,152 @@ jobs:
       - name: Checkout candidate
         uses: actions/checkout@v4
 
+      - name: Validate equivalence evidence framework
+        run: |
+          python3 -m unittest discover \
+            -s tools/imx952-digital-twin/equivalence/tests \
+            -p 'test_*.py' \
+            -v
+          python3 tools/imx952-digital-twin/equivalence/qualification_gate.py \
+            --mode engineering \
+            --skip-tests
+          python3 tools/imx952-digital-twin/equivalence/check_system_manager_contract.py
+          python3 tools/imx952-digital-twin/equivalence/check_fusa_contract.py
+          python3 tools/imx952-digital-twin/equivalence/check_fusa_scheck_contract.py
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/AUTHORITATIVE_BASELINE.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/EQUIVALENCE_STATUS.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_contract.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_lmm_contract.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_bbm_contract.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.template.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.generated.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_pinctrl_permissions.contract.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_fusa_priority_contract.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_fusa_scheck_contract.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/profiles/imx952_evk_b0_foundation.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_physical_reference.template.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_boot_artifacts.template.json >/dev/null
+
+      - name: Generate pinned-source clock permission evidence
+        run: |
+          python3 tools/imx952-digital-twin/equivalence/generate_clock_permissions.py \
+            --output imx952-clock-permissions-generated.json
+          python3 -m json.tool imx952-clock-permissions-generated.json >/dev/null
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          generated = json.loads(Path('imx952-clock-permissions-generated.json').read_text())
+          committed = json.loads(Path('tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.generated.json').read_text())
+          if generated != committed:
+              raise SystemExit('generated clock permission map differs from committed source-derived contract')
+          print('Clock permission contract matches pinned NXP source exactly.')
+          PY
+
+      - name: Generate and verify pinned-source Pinctrl permission evidence
+        run: |
+          python3 tools/imx952-digital-twin/equivalence/generate_pinctrl_permissions.py \
+            --output imx952-pinctrl-permissions-generated.json
+          python3 -m json.tool imx952-pinctrl-permissions-generated.json >/dev/null
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          generated = json.loads(Path('imx952-pinctrl-permissions-generated.json').read_text())
+          contract = json.loads(Path('tools/imx952-digital-twin/equivalence/contracts/imx952_pinctrl_permissions.contract.json').read_text())
+
+          if generated['global_pin_count'] != contract['global_pin_count']:
+              raise SystemExit('Pinctrl global pin count differs from compact contract')
+          if generated['global_daisy_count'] != contract['global_daisy_count']:
+              raise SystemExit('Pinctrl global daisy count differs from compact contract')
+          if generated['source']['pin_header_sha256'] != contract['source']['pin_header_sha256']:
+              raise SystemExit('Pinctrl pin-header hash differs from compact contract')
+          if generated['source']['generated_config_sha256'] != contract['source']['generated_config_sha256']:
+              raise SystemExit('Pinctrl generated-config hash differs from compact contract')
+
+          def generated_ids(agent, resource):
+              return {entry['id'] for entry in generated['agents'][agent][resource]}
+
+          for agent in ('0', '1'):
+              expected_pins = set(contract['agents'][agent]['pin_ids'])
+              expected_daisies = set(contract['agents'][agent]['daisy_ids'])
+              if generated_ids(agent, 'pins') != expected_pins:
+                  raise SystemExit(f'Pinctrl pin IDs differ for agent {agent}')
+              if generated_ids(agent, 'daisies') != expected_daisies:
+                  raise SystemExit(f'Pinctrl daisy IDs differ for agent {agent}')
+
+          apns = contract['agents']['2']
+          pin_rule = apns['pin_rule']
+          expected_pins = set(range(pin_rule['range_start'], pin_rule['range_end_inclusive'] + 1)) - set(pin_rule['exclude'])
+          daisy_rule = apns['daisy_rule']
+          expected_daisies = set(range(daisy_rule['range_start'], daisy_rule['range_end_inclusive'] + 1)) - set(daisy_rule['exclude'])
+          if generated_ids('2', 'pins') != expected_pins:
+              raise SystemExit('Pinctrl AP-NS pin IDs differ from compact contract')
+          if generated_ids('2', 'daisies') != expected_daisies:
+              raise SystemExit('Pinctrl AP-NS daisy IDs differ from compact contract')
+
+          expected_counts = {
+              agent: (data['pin_count'], data['daisy_count'])
+              for agent, data in contract['agents'].items()
+          }
+          actual_counts = {
+              agent: (data['pin_count'], data['daisy_count'])
+              for agent, data in generated['agents'].items()
+          }
+          if actual_counts != expected_counts:
+              raise SystemExit(f'Pinctrl agent counts differ: {actual_counts} != {expected_counts}')
+          print('Pinctrl permission contract matches pinned NXP source exactly.')
+          PY
+
+      - name: Verify full physical gate fails closed without evidence
+        shell: bash
+        run: |
+          set +e
+          python3 tools/imx952-digital-twin/equivalence/qualification_gate.py \
+            --mode full-physical \
+            --skip-tests \
+            > imx952-full-physical-gate.log 2>&1
+          status=$?
+          cat imx952-full-physical-gate.log
+          test "${status}" -eq 2
+          grep -q '"verdict": "BLOCKED"' imx952-full-physical-gate.log
+
       - name: Pull official Renode nightly runtime
         run: docker pull antmicro/renode:nightly-dotnet
 
-      - name: Run i.MX952 regression suite
+      - name: Run i.MX952 regression suites
         shell: bash
         run: |
           set +e
           docker run --rm \
             -v "$PWD:/workspace" \
             -v "$PWD/scripts/pydev/nxp_imx952_system_manager.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_full.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_full.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_transport.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_transport.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_bbm.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_bbm.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_misc.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_misc.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_clock.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_clock.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_pinctrl.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_pinctrl.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_fusa.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_fusa.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_fusa_scheck.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_fusa_scheck.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_ele.py:/opt/renode/scripts/pydev/nxp_imx952_ele.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_lpi2c7.py:/opt/renode/scripts/pydev/nxp_imx952_lpi2c7.py:ro" \
             -w /workspace \
             antmicro/renode:nightly-dotnet \
-            renode-test --show-log tests/platforms/NXP_IMX952.robot \
+            renode-test --show-log \
+              tests/platforms/NXP_IMX952.robot \
+              tests/platforms/NXP_IMX952_FULL_EQUIVALENCE.robot \
+              tests/platforms/NXP_IMX952_BBM.robot \
+              tests/platforms/NXP_IMX952_MISC.robot \
+              tests/platforms/NXP_IMX952_CLOCK_PERMISSIONS.robot \
+              tests/platforms/NXP_IMX952_PINCTRL_PERMISSIONS.robot \
+              tests/platforms/NXP_IMX952_FUSA_PRIORITY.robot \
+              tests/platforms/NXP_IMX952_FUSA_SCHECK.robot \
             > imx952-qualification.log 2>&1
           status=$?
           echo "Qualification exit status: ${status}"
           echo "----- qualification log tail -----"
-          tail -n 200 imx952-qualification.log || true
+          tail -n 700 imx952-qualification.log || true
           echo "----- end qualification log tail -----"
           exit "${status}"
 
@@ -67,6 +194,9 @@ jobs:
           name: imx952-qualification-log
           path: |
             imx952-qualification.log
+            imx952-full-physical-gate.log
+            imx952-clock-permissions-generated.json
+            imx952-pinctrl-permissions-generated.json
             logs/**/*.log
           if-no-files-found: warn
 
@@ -78,5 +208,44 @@ jobs:
             test -f tools/imx952-digital-twin/run.sh
             test -f tools/imx952-digital-twin/run.ps1
             test -f tools/imx952-digital-twin/qualify.sh
+            test -f tools/imx952-digital-twin/qualify-full.sh
+            test -f tools/imx952-digital-twin/qualify-full.ps1
+            test -f tools/imx952-digital-twin/equivalence/collect_evidence.py
+            test -f tools/imx952-digital-twin/equivalence/compare_evidence.py
+            test -f tools/imx952-digital-twin/equivalence/qualification_gate.py
+            test -f tools/imx952-digital-twin/equivalence/check_system_manager_contract.py
+            test -f tools/imx952-digital-twin/equivalence/check_fusa_contract.py
+            test -f tools/imx952-digital-twin/equivalence/check_fusa_scheck_contract.py
+            test -f tools/imx952-digital-twin/equivalence/generate_clock_permissions.py
+            test -f tools/imx952-digital-twin/equivalence/generate_pinctrl_permissions.py
+            test -f tools/imx952-digital-twin/equivalence/validate_boot_artifacts.py
+            test -f tools/imx952-digital-twin/equivalence/AUTHORITATIVE_BASELINE.json
+            test -f tools/imx952-digital-twin/equivalence/EQUIVALENCE_STATUS.json
+            test -f tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_contract.json
+            test -f tools/imx952-digital-twin/equivalence/contracts/imx952_lmm_contract.json
+            test -f tools/imx952-digital-twin/equivalence/contracts/imx952_bbm_contract.json
+            test -f tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json
+            test -f tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.template.json
+            test -f tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.generated.json
+            test -f tools/imx952-digital-twin/equivalence/contracts/imx952_pinctrl_permissions.contract.json
+            test -f tools/imx952-digital-twin/equivalence/contracts/imx952_fusa_priority_contract.json
+            test -f tools/imx952-digital-twin/equivalence/contracts/imx952_fusa_scheck_contract.json
+            test -f tools/imx952-digital-twin/equivalence/DEEP_GAP_ANALYSIS.md
           fi
+          test -f platforms/boards/nxp_imx952_evk_full.repl
+          test -f scripts/pydev/nxp_imx952_system_manager_transport.py
+          test -f scripts/pydev/nxp_imx952_system_manager_bbm.py
+          test -f scripts/pydev/nxp_imx952_system_manager_misc.py
+          test -f scripts/pydev/nxp_imx952_system_manager_clock.py
+          test -f scripts/pydev/nxp_imx952_system_manager_pinctrl.py
+          test -f scripts/pydev/nxp_imx952_system_manager_fusa.py
+          test -f scripts/pydev/nxp_imx952_system_manager_fusa_scheck.py
+          test -f tests/platforms/NXP_IMX952_FULL_EQUIVALENCE.robot
+          test -f tests/platforms/NXP_IMX952_BBM.robot
+          test -f tests/platforms/NXP_IMX952_MISC.robot
+          test -f tests/platforms/NXP_IMX952_CLOCK_PERMISSIONS.robot
+          test -f tests/platforms/NXP_IMX952_PINCTRL_PERMISSIONS.robot
+          test -f tests/platforms/NXP_IMX952_FUSA_PRIORITY.robot
+          test -f tests/platforms/NXP_IMX952_FUSA_SCHECK.robot
+          test -f scripts/single-node/nxp_imx952_evk_full.resc
           test -f scripts/single-node/nxp_imx952_evk_heterogeneous_demo.resc

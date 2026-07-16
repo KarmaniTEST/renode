@@ -1,0 +1,142 @@
+{
+  "schema_version": 11,
+  "target": "i.MX952 EVK B0",
+  "policy": "A subsystem may be promoted only when every required gate has reproducible evidence against the pinned physical reference.",
+  "levels": [
+    "NOT_MODELED",
+    "FUNCTIONAL_MODEL",
+    "PROTOCOL_EQUIVALENT",
+    "FIRMWARE_EQUIVALENT",
+    "TIMING_CORRELATED",
+    "CYCLE_ACCURATE",
+    "FULL_EQUIVALENCE"
+  ],
+  "subsystems": {
+    "a55_m7_heterogeneous_execution": {
+      "current_level": "FUNCTIONAL_MODEL",
+      "existing_evidence": ["tests/platforms/NXP_IMX952.robot"],
+      "missing_gates": ["physical_board_differential", "timing_correlation"]
+    },
+    "boot_rom_and_production_boot_chain": {
+      "current_level": "NOT_MODELED",
+      "missing_gates": ["reset_state", "boot_source_selection", "ahab_container", "oei", "ddr_training", "authentication", "atf_handoff", "uboot_handoff", "physical_board_differential"]
+    },
+    "edgelock_enclave": {
+      "current_level": "FUNCTIONAL_MODEL",
+      "existing_evidence": ["GET_INFO subset", "READ_FUSE subset", "GET_FW_STATUS subset"],
+      "missing_gates": ["complete_command_inventory", "error_paths", "lifecycle_states", "authentication_flows", "physical_board_differential"]
+    },
+    "system_manager": {
+      "current_level": "FUNCTIONAL_MODEL",
+      "existing_evidence": [
+        "explicit M7/AP-S/AP-NS agent identity",
+        "source-derived agent-specific Power permissions",
+        "source-derived Performance domains and permissions",
+        "SCMI Power 3.1 functional contract",
+        "SCMI System Power 2.1 functional contract",
+        "SCMI Performance 4.0 functional contract",
+        "SCMI Clock 3.0 global 198-clock ID space with exact generated M7/AP-S/AP-NS permission maps and mutation enforcement",
+        "SCMI Pinctrl 1.0 global 140-pin/135-daisy inventory with exact generated M7/AP-S/AP-NS permission maps and functional state enforcement",
+        "SCMI Sensor 3.1 with i.MX952 TEMP_ANA/TEMP_A55 access separation",
+        "M7-only SCMI FuSa 1.0 with global 89-fault inventory and exact source-permitted faults WDOG5/SW0/SW1/M7_LOCKUP/M7_RESET",
+        "FuSa F-EENV and S-EENV state/get/set/notify behavior",
+        "FuSa FAULT_GET, FAULT_SET and 32-fault-window FAULT_GROUP_NOTIFY behavior with exact permission enforcement",
+        "FuSa FUSA_SCHECK_EVNTRIG and FUSA_SCHECK_TEST_EXEC command acceptance at the pinned NXP LMM backend boundary",
+        "deterministic FuSa S-check invocation counts and last targetTestId evidence without fabricated SCST/SAF execution",
+        "functional ordered FuSa state and fault notifications through M7 priority SMT channel 2 and MU doorbell 2",
+        "FuSa fault-event message ID 2 with deterministic set/recovery and command-generated clear evidence",
+        "NXP LMM 1.1 functional lifecycle and notification permission separation",
+        "exact seven-channel mx952evk SMT topology",
+        "functional M7-to-AP-NS LMM normal P2A notification delivery with modeled GSR pending state",
+        "NXP BBM 1.0 functional GPR/RTC/button resource and permission model",
+        "source-derived BBM RTC alarm, rollover and update subscriptions plus button-detection subscription",
+        "functional ordered BBM normal P2A delivery through M7 local channel 1 and AP-NS local channel 3 with modeled GSR pending state",
+        "NXP MISC 1.1 complete source-permitted functional control surface",
+        "all ten AP-NS device controls with exact source-derived masks",
+        "M7 BUTTON notify/get, TEST action and PCA2131 extended access permissions",
+        "AP-NS SD3/M2E/BT/M2M wake and BUTTON get/notify permissions",
+        "source-derived board-control 0x8000 wire-ID semantics and operation thresholds",
+        "functional ordered MISC control events through M7 local channel 1 and AP-NS local channel 3",
+        "safe source-derived MISC build/reset/silicon/config/board/DDR metadata without fabricated fuse values",
+        "NXP CPU protocol M7 lifecycle subset",
+        "tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.generated.json",
+        "tools/imx952-digital-twin/equivalence/contracts/imx952_pinctrl_permissions.contract.json",
+        "tools/imx952-digital-twin/equivalence/contracts/imx952_fusa_priority_contract.json",
+        "tools/imx952-digital-twin/equivalence/contracts/imx952_fusa_scheck_contract.json",
+        "tools/imx952-digital-twin/equivalence/contracts/imx952_bbm_contract.json",
+        "tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json",
+        "tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_misc_overlay.json",
+        "tools/imx952-digital-twin/equivalence/check_fusa_contract.py",
+        "tools/imx952-digital-twin/equivalence/check_fusa_scheck_contract.py",
+        "tools/imx952-digital-twin/equivalence/check_bbm_notification_contract.py",
+        "tools/imx952-digital-twin/equivalence/check_misc_contract.py",
+        "tools/imx952-digital-twin/equivalence/check_system_manager_misc_overlay.py",
+        "tests/platforms/NXP_IMX952_FULL_EQUIVALENCE.robot",
+        "tests/platforms/NXP_IMX952_BBM.robot",
+        "tests/platforms/NXP_IMX952_BBM_NOTIFICATIONS.robot",
+        "tests/platforms/NXP_IMX952_MISC.robot",
+        "tests/platforms/NXP_IMX952_CLOCK_PERMISSIONS.robot",
+        "tests/platforms/NXP_IMX952_PINCTRL_PERMISSIONS.robot",
+        "tests/platforms/NXP_IMX952_FUSA_PRIORITY.robot",
+        "tests/platforms/NXP_IMX952_FUSA_FAULTS.robot",
+        "tests/platforms/NXP_IMX952_FUSA_SCHECK.robot",
+        ".github/workflows/imx952-fusa.yml"
+      ],
+      "missing_gates": [
+        "physical_clock_tree_rate_parent_and_enable_correlation",
+        "physical_pad_mux_electrical_and_signal_propagation_correlation",
+        "misc_physical_device_register_side_effect_correlation",
+        "misc_audio_adc_audmix_and_combo_phy_behavior_correlation",
+        "misc_pca2131_i2c_timing_oscillator_and_persistence_correlation",
+        "misc_physical_wake_button_event_generation_and_latency",
+        "misc_test_action_physical_safety_reaction",
+        "misc_fuse_rom_passover_syslog_and_physical_reset_semantics",
+        "physical_fccu_safety_island_and_fault_source_generation",
+        "physical_fusa_fault_escalation_recovery_and_reset_reactions",
+        "physical_fusa_priority_queue_and_safety_reaction_timing",
+        "physical_scst_saf_execution_and_diagnostic_coverage",
+        "physical_rtc_button_event_source_and_timing_correlation",
+        "notification_irq_wiring_and_latency_correlation",
+        "production_firmware_differential",
+        "physical_board_differential"
+      ]
+    },
+    "gic_its_msi": {
+      "current_level": "NOT_MODELED",
+      "missing_gates": ["its_register_model", "lpi_tables", "msi_translation", "pcie_msi", "netc_msi", "production_driver", "physical_board_differential"]
+    },
+    "netc": {
+      "current_level": "NOT_MODELED",
+      "missing_gates": ["register_model", "descriptor_dma", "interrupts", "mdio_phy", "switching", "tsn", "rpmsg_partitioning", "production_driver", "traffic_differential", "timing_correlation"]
+    },
+    "usb": {
+      "current_level": "NOT_MODELED",
+      "missing_gates": ["controller_registers", "dma", "interrupts", "host", "device", "type_c_role", "production_driver", "protocol_differential", "timing_correlation"]
+    },
+    "pcie_hsio": {
+      "current_level": "NOT_MODELED",
+      "missing_gates": ["root_complex", "configuration_space", "link_state", "msi_msix", "dma", "iommu_or_smmu", "production_enumeration", "endpoint_workload_differential", "timing_correlation"]
+    },
+    "gpu": {
+      "current_level": "NOT_MODELED",
+      "missing_gates": ["execution_capable_backend", "production_driver", "memory_semantics", "interrupts", "workload_output_differential", "timing_correlation"]
+    },
+    "npu": {
+      "current_level": "NOT_MODELED",
+      "missing_gates": ["execution_capable_backend", "production_runtime", "tensor_output_differential", "memory_semantics", "interrupts", "timing_correlation"]
+    },
+    "timing_and_performance": {
+      "current_level": "NOT_MODELED",
+      "missing_gates": ["silicon_measurement_plan", "clock_domains", "ddr_model", "interconnect_contention", "dma_concurrency", "interrupt_latency", "peripheral_latency", "accelerator_latency", "validated_tolerances"]
+    }
+  },
+  "program_gate": {
+    "current": "WP0_GOLDEN_REFERENCE_AND_DIFFERENTIAL_HARNESS",
+    "exit_criteria": [
+      "same test definition can target digital_twin and physical_board",
+      "reference evidence contains exact board, silicon and firmware identity",
+      "comparison produces machine-readable PASS/FAIL",
+      "no FULL_EQUIVALENCE claim is possible without hardware-correlated evidence"
+    ]
+  }
+}
