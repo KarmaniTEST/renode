@@ -1,5 +1,5 @@
 {
-  "schema_version": 7,
+  "schema_version": 8,
   "target": "i.MX952 EVK",
   "source": {
     "repository": "nxp-imx/imx-sm",
@@ -11,6 +11,9 @@
     "clock_protocol": "sm/rpc/scmi/rpc_scmi_clock.c",
     "pinctrl_header": "devices/MIMX952/sm/dev_sm_pin.h",
     "pinctrl_protocol": "sm/rpc/scmi/rpc_scmi_pinctrl.c",
+    "fusa_protocol": "sm/rpc/scmi/rpc_scmi_fusa.c",
+    "fusa_api": "sm/rpc/scmi/rpc_scmi_fusa.h",
+    "fault_header": "devices/MIMX952/sm/dev_sm_fault.h",
     "performance_domain_header": "devices/MIMX952/sm/dev_sm_perf.h",
     "power_domain_header": "devices/MIMX952/sm/dev_sm_power.h",
     "sensor_header": "devices/MIMX952/sm/dev_sm_sensor.h",
@@ -31,6 +34,8 @@
       "scmi_instance": 0,
       "domain_id": 4,
       "secure": false,
+      "seenv_id": 1,
+      "fusa_permission": "ALL",
       "clock_permission_count": 5,
       "pinctrl_pin_permission_count": 2,
       "pinctrl_daisy_permission_count": 7,
@@ -48,6 +53,8 @@
       "scmi_instance": 1,
       "domain_id": 3,
       "secure": true,
+      "seenv_id": 0,
+      "fusa_permission": "NONE",
       "clock_permission_count": 9,
       "pinctrl_pin_permission_count": 0,
       "pinctrl_daisy_permission_count": 0,
@@ -66,6 +73,8 @@
       "scmi_instance": 1,
       "domain_id": 3,
       "secure": false,
+      "seenv_id": 0,
+      "fusa_permission": "NONE",
       "clock_permission_count": 92,
       "pinctrl_pin_permission_count": 131,
       "pinctrl_daisy_permission_count": 125,
@@ -115,6 +124,36 @@
       "Pinctrl functional state does not prove pad electrical behavior, mux side effects, ownership timing or signal propagation."
     ]
   },
+  "fusa_priority_first_slice": {
+    "agent": "M7",
+    "agent_id": 0,
+    "protocol": "0x83",
+    "version": "0x00010000",
+    "contract": "tools/imx952-digital-twin/equivalence/contracts/imx952_fusa_priority_contract.json",
+    "inventory": {"fault_count": 89, "seenv_id_count": 1, "seenv_lm_count": 1},
+    "implemented_commands": [
+      "PROTOCOL_VERSION",
+      "PROTOCOL_ATTRIBUTES",
+      "PROTOCOL_MESSAGE_ATTRIBUTES",
+      "FUSA_FEENV_STATE_GET",
+      "FUSA_FEENV_STATE_NOTIFY",
+      "FUSA_SEENV_STATE_GET",
+      "FUSA_SEENV_STATE_SET",
+      "NEGOTIATE_PROTOCOL_VERSION"
+    ],
+    "priority_transport": {
+      "local_channel": 2,
+      "global_smt_channel": 2,
+      "mu_doorbell": 2,
+      "notification_message_id": 0,
+      "queue_limit": 8
+    },
+    "qualification_evidence": [
+      "scripts/pydev/nxp_imx952_system_manager_fusa.py",
+      "tests/platforms/NXP_IMX952_FUSA_PRIORITY.robot"
+    ],
+    "qualification_boundary": "Functional M7 FuSa state/subscription and priority queue/channel behavior only. Physical fault generation, fault commands, safety reaction timing and interrupt latency remain open."
+  },
   "performance_domains": [
     {"id": 0, "name": "M33"}, {"id": 1, "name": "WAKEUP"}, {"id": 2, "name": "M7"},
     {"id": 3, "name": "DRAM"}, {"id": 4, "name": "HSIO"}, {"id": 5, "name": "NPU"},
@@ -162,15 +201,21 @@
     {"id": "0x80", "name": "NXP_LMM"}, {"id": "0x81", "name": "NXP_BBM"},
     {"id": "0x82", "name": "NXP_CPU"}, {"id": "0x84", "name": "NXP_MISC"}
   ],
+  "agent_specific_protocols": [
+    {"agent_id": 0, "agent": "M7", "protocols": [{"id": "0x83", "name": "FUSA"}]},
+    {"agent_id": 1, "agent": "AP-S", "protocols": []},
+    {"agent_id": 2, "agent": "AP-NS", "protocols": []}
+  ],
   "known_protocol_versions": {
     "0x11": "0x00030001", "0x12": "0x00020001", "0x13": "0x00040000",
     "0x14": "0x00030000", "0x15": "0x00030001", "0x16": "0x00030001",
     "0x17": "0x00020001", "0x19": "0x00010000", "0x80": "0x00010001",
-    "0x81": "0x00010000", "0x84": "0x00010001"
+    "0x81": "0x00010000", "0x83": "0x00010000", "0x84": "0x00010001"
   },
   "candidate_implemented_protocols": [
     "0x10", "0x11", "0x12", "0x13", "0x14", "0x15", "0x19", "0x80", "0x81", "0x82", "0x84"
   ],
+  "candidate_agent_specific_protocols": {"0": ["0x83"], "1": [], "2": []},
   "pinned_not_yet_advertised": [
     {"id": "0x16", "name": "RESET", "reason": "The Linux-visible i.MX952 target contract does not expose this protocol; exact EVK reset-domain permissions must be established before optional advertisement."},
     {"id": "0x17", "name": "VOLTAGE", "reason": "The Linux-visible i.MX952 target contract does not expose this protocol; exact EVK voltage-domain permissions must be established before optional advertisement."}
@@ -186,12 +231,15 @@
     "Preserve the global 198-clock ID space while enforcing source-derived per-agent mutation permissions and restricted attributes.",
     "Regenerate and compare the exact Pinctrl pin/daisy permission map from the pinned NXP source on every qualification run.",
     "Preserve the global 140-pin inventory while enforcing independent source-derived pin and daisy mutation permissions.",
+    "Keep FuSa 0x83 M7-only and validate its independent pinned priority contract on every qualification run.",
+    "Preserve separate normal and priority P2A paths; priority events must remain ordered while channel 2 is busy.",
+    "Do not treat the deterministic FuSa trigger as a production i.MX952 register or physical fault source.",
     "Do not convert SET-only sensor permissions into read access.",
     "Do not convert AP-NS LMM NOTIFY permission into lifecycle-control permission.",
     "Do not expose AP-S to BBM because the pinned EVK configuration grants it no BBM resources.",
     "Do not expose MISC controls beyond explicit generated-config permissions; first-slice AP-NS access is COMBO_PHY only.",
     "Do not fabricate physical fuse-derived MISC silicon fields; keep unmeasured numeric fields zero until EVK evidence exists.",
-    "Keep deterministic sensor, RTC, button, reset-reason, pin state and logical-machine timing/state inputs classified as functional-model evidence until correlated with the physical EVK.",
+    "Keep deterministic sensor, RTC, button, reset-reason, pin state, FuSa state and logical-machine timing/state inputs classified as functional-model evidence until correlated with the physical EVK.",
     "Keep modeled P2A delivery separate from interrupt-latency and cycle-accuracy claims."
   ]
 }
