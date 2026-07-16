@@ -93,7 +93,9 @@ def _fusa_restore_request(channel):
 
 
 def _fusa_protocols_for_agent(agent_id):
-    protocols = list(_protocols_for_agent(agent_id))
+    # Preserve all lower-layer source-derived protocols (including BBM and MISC)
+    # before adding the M7-only FuSa surface.
+    protocols = list(_misc_protocols_for_agent(agent_id))
     if agent_id == AGENT_M7 and _FUSA_PROTOCOL not in protocols:
         protocols.append(_FUSA_PROTOCOL)
     return protocols
