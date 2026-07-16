@@ -9,6 +9,7 @@ on:
       - "scripts/pydev/nxp_imx952_system_manager_bbm.py"
       - "scripts/pydev/nxp_imx952_system_manager_transport.py"
       - "scripts/pydev/nxp_imx952_system_manager_fusa.py"
+      - "scripts/pydev/nxp_imx952_system_manager_fusa_scheck.py"
       - "platforms/boards/nxp_imx952_evk_full.repl"
       - "tests/platforms/NXP_IMX952_BBM_NOTIFICATIONS.robot"
       - "tools/imx952-digital-twin/equivalence/check_bbm_notification_contract.py"
@@ -19,6 +20,7 @@ on:
       - "scripts/pydev/nxp_imx952_system_manager_bbm.py"
       - "scripts/pydev/nxp_imx952_system_manager_transport.py"
       - "scripts/pydev/nxp_imx952_system_manager_fusa.py"
+      - "scripts/pydev/nxp_imx952_system_manager_fusa_scheck.py"
       - "platforms/boards/nxp_imx952_evk_full.repl"
       - "tests/platforms/NXP_IMX952_BBM_NOTIFICATIONS.robot"
       - "tools/imx952-digital-twin/equivalence/check_bbm_notification_contract.py"
@@ -63,6 +65,7 @@ jobs:
             -v "$PWD/scripts/pydev/nxp_imx952_system_manager_clock.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_clock.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_system_manager_pinctrl.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_pinctrl.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_system_manager_fusa.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_fusa.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_fusa_scheck.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_fusa_scheck.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_ele.py:/opt/renode/scripts/pydev/nxp_imx952_ele.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_lpi2c7.py:/opt/renode/scripts/pydev/nxp_imx952_lpi2c7.py:ro" \
             -w /workspace \
@@ -91,6 +94,7 @@ jobs:
         if: success()
         run: |
           test -f scripts/pydev/nxp_imx952_system_manager_bbm.py
+          test -f scripts/pydev/nxp_imx952_system_manager_fusa_scheck.py
           test -f tests/platforms/NXP_IMX952_BBM_NOTIFICATIONS.robot
           test -f tools/imx952-digital-twin/equivalence/check_bbm_notification_contract.py
           test -f tools/imx952-digital-twin/equivalence/contracts/imx952_bbm_contract.json
