@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("demo", "platform", "qualify")]
+    [ValidateSet("demo", "mu7", "platform", "qualify")]
     [string]$Mode = "demo",
 
     [ValidateSet("auto", "local", "docker")]
@@ -42,6 +42,9 @@ if ([string]::IsNullOrWhiteSpace($Renode)) {
 switch ($Mode) {
     "demo" {
         $Resc = Join-Path $RootDir "scripts/single-node/nxp_imx952_evk_heterogeneous_demo.resc"
+    }
+    "mu7" {
+        $Resc = Join-Path $RootDir "scripts/single-node/nxp_imx952_evk_mu7_firmware_demo.resc"
     }
     "platform" {
         $Resc = Join-Path $RootDir "scripts/single-node/nxp_imx952_evk.resc"
