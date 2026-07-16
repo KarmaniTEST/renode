@@ -19,14 +19,14 @@ Verified Plan Loads ATF And U Boot Bytes At Pinned Destinations
 Generated Plan Leaves A55 Halted Behind Explicit Start Macro
     Execute Command    include @${BOOT_PLAN}
 
-    ${halted0}=    Execute Command    a55_0 IsHalted
-    ${halted1}=    Execute Command    a55_1 IsHalted
-    ${halted2}=    Execute Command    a55_2 IsHalted
-    ${halted3}=    Execute Command    a55_3 IsHalted
+    ${halted0}=    Execute Command    sysbus.a55_0 IsHalted
+    ${halted1}=    Execute Command    sysbus.a55_1 IsHalted
+    ${halted2}=    Execute Command    sysbus.a55_2 IsHalted
+    ${halted3}=    Execute Command    sysbus.a55_3 IsHalted
     Should Be Equal    ${halted0.strip().lower()}    true
     Should Be Equal    ${halted1.strip().lower()}    true
     Should Be Equal    ${halted2.strip().lower()}    true
     Should Be Equal    ${halted3.strip().lower()}    true
 
-    ${pc}=    Execute Command    a55_0 PC
+    ${pc}=    Execute Command    sysbus.a55_0 PC
     Should Be Equal As Numbers    ${pc.strip()}    0x8A200000
