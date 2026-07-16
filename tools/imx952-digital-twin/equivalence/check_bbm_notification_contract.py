@@ -50,6 +50,44 @@ REQUIRED_FUNCTIONS = {
 }
 
 
+def safe_integer_expression(node: ast.AST) -> int | None:
+    """Evaluate a deliberately small integer-only AST expression subset."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, int):
+        return node.value
+    if isinstance(node, ast.UnaryOp):
+        operand = safe_integer_expression(node.operand)
+        if operand is None:
+            return None
+        if isinstance(node.op, ast.UAdd):
+            return operand
+        if isinstance(node.op, ast.USub):
+            return -operand
+        if isinstance(node.op, ast.Invert):
+            return ~operand
+        return None
+    if isinstance(node, ast.BinOp):
+        left = safe_integer_expression(node.left)
+        right = safe_integer_expression(node.right)
+        if left is None or right is None:
+            return None
+        if isinstance(node.op, ast.LShift):
+            return left << right
+        if isinstance(node.op, ast.RShift):
+            return left >> right
+        if isinstance(node.op, ast.BitOr):
+            return left | right
+        if isinstance(node.op, ast.BitAnd):
+            return left & right
+        if isinstance(node.op, ast.BitXor):
+            return left ^ right
+        if isinstance(node.op, ast.Add):
+            return left + right
+        if isinstance(node.op, ast.Sub):
+            return left - right
+        return None
+    return None
+
+
 def integer_assignments(tree: ast.Module) -> Dict[str, int]:
     values: Dict[str, int] = {}
     for node in tree.body:
@@ -58,11 +96,8 @@ def integer_assignments(tree: ast.Module) -> Dict[str, int]:
         target = node.targets[0]
         if not isinstance(target, ast.Name):
             continue
-        try:
-            value = ast.literal_eval(node.value)
-        except (ValueError, TypeError):
-            continue
-        if isinstance(value, int):
+        value = safe_integer_expression(node.value)
+        if value is not None:
             values[target.id] = value
     return values
 
