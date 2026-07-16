@@ -11,9 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 PINNED_TARGET = {"soc": "i.MX952", "revision": "B0", "board": "i.MX952 EVK"}
-EXPECTED_SUBSYSTEMS = {
-    "gic_its_msi", "netc", "usb", "pcie_hsio", "gpu", "npu"
-}
+EXPECTED_SUBSYSTEMS = {"gic_its_msi", "netc", "usb", "pcie_hsio", "gpu", "npu"}
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 
@@ -35,6 +33,9 @@ def _integer(value: Any) -> int:
 
 
 def _validate_file(record: Dict[str, Any], root: Path, label: str, errors: List[str]):
+    if not isinstance(record, dict):
+        errors.append(f"{label}: file record is missing")
+        return None
     relative = record.get("path")
     expected = str(record.get("sha256") or "").lower()
     if not relative:
@@ -65,6 +66,11 @@ def validate_manifest(manifest: Dict[str, Any], root: Path, mode: str) -> Dict[s
     subsystems = manifest.get("subsystems", {})
     if set(subsystems) != EXPECTED_SUBSYSTEMS:
         errors.append("subsystem inventory differs from the six mandatory backend blocks")
+
+    evidence_contract = manifest.get("physical_evidence_contract", {})
+    identity_fields = evidence_contract.get("identity_fields", [])
+    file_fields = evidence_contract.get("file_fields", [])
+    physical_fields = evidence_contract.get("required_fields", [])
 
     for name in sorted(EXPECTED_SUBSYSTEMS):
         entry = subsystems.get(name, {})
@@ -113,9 +119,7 @@ def validate_manifest(manifest: Dict[str, Any], root: Path, mode: str) -> Dict[s
         parsed_ranges.sort()
         for previous, current in zip(parsed_ranges, parsed_ranges[1:]):
             if current[0] < previous[1]:
-                item_errors.append(
-                    f"MMIO ranges overlap: {previous[2]} and {current[2]}"
-                )
+                item_errors.append(f"MMIO ranges overlap: {previous[2]} and {current[2]}")
 
         routes = entry.get("interrupt_routes", [])
         if not routes:
@@ -139,6 +143,7 @@ def validate_manifest(manifest: Dict[str, Any], root: Path, mode: str) -> Dict[s
                 file_result["name"] = test["name"]
                 test_results.append(file_result)
 
+        physical_results = {}
         physical = entry.get("physical_evidence")
         if mode == "full-physical":
             if evidence_class != "production":
@@ -146,18 +151,20 @@ def validate_manifest(manifest: Dict[str, Any], root: Path, mode: str) -> Dict[s
             if not isinstance(physical, dict):
                 item_errors.append("physical evidence is missing")
             else:
-                required_fields = manifest.get(
-                    "physical_evidence_contract", {}
-                ).get("required_fields", [])
-                for field in required_fields:
+                for field in identity_fields:
+                    value = physical.get(field)
+                    if not isinstance(value, dict) or not value:
+                        item_errors.append(f"physical identity missing: {field}")
+                for field in file_fields:
+                    result = _validate_file(
+                        physical.get(field), root,
+                        f"{name} physical evidence {field}", item_errors
+                    )
+                    if result:
+                        physical_results[field] = result
+                for field in physical_fields:
                     if field not in physical or physical[field] in (None, "", {}):
                         item_errors.append(f"physical evidence field missing: {field}")
-                for field in (
-                    "firmware_manifest_sha256", "digital_twin_result_sha256",
-                    "physical_board_result_sha256"
-                ):
-                    if not SHA256_RE.fullmatch(str(physical.get(field) or "").lower()):
-                        item_errors.append(f"physical evidence hash invalid: {field}")
                 if physical.get("comparison_result") != "PASS":
                     item_errors.append("physical comparison result is not PASS")
                 tolerances = physical.get("timing_tolerances")
@@ -172,6 +179,7 @@ def validate_manifest(manifest: Dict[str, Any], root: Path, mode: str) -> Dict[s
             "mandatory_capability_count": len(mandatory),
             "provided_capability_count": len(provided),
             "tests": test_results,
+            "physical_evidence_files": physical_results,
             "errors": item_errors,
         }
         errors.extend(f"{name}: {message}" for message in item_errors)
@@ -187,7 +195,7 @@ def validate_manifest(manifest: Dict[str, Any], root: Path, mode: str) -> Dict[s
         "claim_boundary": [
             "Functional readiness proves declared executable backend capabilities and immutable artifacts only.",
             "Synthetic fixtures validate this gate but are not subsystem evidence.",
-            "Full physical readiness additionally requires production EVK differential evidence and timing tolerances for every subsystem."
+            "Full physical readiness verifies immutable EVK evidence files, PASS differential results and timing tolerances for every subsystem."
         ]
     }
 
@@ -196,9 +204,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--root", type=Path, default=Path("."))
-    parser.add_argument(
-        "--mode", choices=("functional", "full-physical"), default="functional"
-    )
+    parser.add_argument("--mode", choices=("functional", "full-physical"), default="functional")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
