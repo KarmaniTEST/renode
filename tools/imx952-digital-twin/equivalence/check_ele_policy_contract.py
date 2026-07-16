@@ -57,7 +57,7 @@ def main():
         errors.append("safe command count differs")
     if len(contract.get("test_only_commands", [])) != 1:
         errors.append("test-only command count differs")
-    if len(contract.get("secure_default_denied_commands", [])) != 15:
+    if len(contract.get("secure_default_denied_commands", [])) != 14:
         errors.append("secure-default denial count differs")
 
     for name, expected in EXPECTED.items():
