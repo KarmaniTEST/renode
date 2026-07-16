@@ -1,0 +1,30 @@
+:name: NXP i.MX 952 EVK firmware-level MU7 A55 + M7 demo
+:description: Runs real A55 and Cortex-M7 instructions that exchange a request and response through the dual-endpoint MU7 model
+
+using sysbus
+
+include $ORIGIN/nxp_imx952_evk.resc
+
+$a55Firmware?=$ORIGIN/../../tests/platforms/NXP_IMX952/a55_mu7_firmware.hex
+$m7Firmware?=$ORIGIN/../../tests/platforms/NXP_IMX952/m7_mu7_firmware.hex
+
+macro reset
+"""
+    emulation Reset
+
+    sysbus LoadHEX $a55Firmware
+    sysbus LoadHEX $m7Firmware
+
+    a55Cluster.a55_0 PC 0x80000000
+    a55Cluster.a55_0 IsHalted false
+    m7 SP 0x20040000
+    m7 PC 0x00000008
+    m7 IsHalted false
+"""
+
+runMacro $reset
+
+# Start execution with: start
+# After the exchange, inspect:
+#   sysbus ReadDoubleWord 0x88020030  -> 0x600D7007 (A55 accepted M7 reply)
+#   sysbus ReadDoubleWord 0x88020034  -> 0x4D3755AA (M7 accepted A55 request)
