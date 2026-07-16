@@ -1,5 +1,5 @@
 {
-  "schema_version": 5,
+  "schema_version": 6,
   "target": "i.MX952 EVK B0",
   "policy": "A subsystem may be promoted only when every required gate has reproducible evidence against the pinned physical reference.",
   "levels": [
@@ -36,6 +36,7 @@
         "SCMI System Power 2.1 functional contract",
         "SCMI Performance 4.0 functional contract",
         "SCMI Clock 3.0 global 198-clock ID space with exact generated M7/AP-S/AP-NS permission maps and mutation enforcement",
+        "SCMI Pinctrl 1.0 global 140-pin/135-daisy inventory with exact generated M7/AP-S/AP-NS permission maps and functional state enforcement",
         "SCMI Sensor 3.1 with i.MX952 TEMP_ANA/TEMP_A55 access separation",
         "NXP LMM 1.1 functional lifecycle and notification permission separation",
         "exact seven-channel mx952evk SMT topology",
@@ -44,14 +45,16 @@
         "NXP MISC 1.1 AP-NS first slice with COMBO_PHY, safe target/config/board metadata, POR reset reason and modeled DDR-region reporting",
         "NXP CPU protocol M7 lifecycle subset",
         "tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.generated.json",
+        "tools/imx952-digital-twin/equivalence/contracts/imx952_pinctrl_permissions.contract.json",
         "tests/platforms/NXP_IMX952_FULL_EQUIVALENCE.robot",
         "tests/platforms/NXP_IMX952_BBM.robot",
         "tests/platforms/NXP_IMX952_MISC.robot",
-        "tests/platforms/NXP_IMX952_CLOCK_PERMISSIONS.robot"
+        "tests/platforms/NXP_IMX952_CLOCK_PERMISSIONS.robot",
+        "tests/platforms/NXP_IMX952_PINCTRL_PERMISSIONS.robot"
       ],
       "missing_gates": [
         "physical_clock_tree_rate_parent_and_enable_correlation",
-        "complete_pinctrl_resource_and_permission_model",
+        "physical_pad_mux_electrical_and_signal_propagation_correlation",
         "complete_nxp_misc_control_resource_coverage",
         "priority_notification_channel_delivery",
         "notification_irq_wiring_and_latency",
