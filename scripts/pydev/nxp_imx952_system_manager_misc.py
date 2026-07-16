@@ -20,7 +20,9 @@ _MISC_MESSAGE_TYPE_NOTIFICATION = 3
 _MISC_M7_NOTIFY_CHANNEL = 1
 _MISC_APNS_NOTIFY_CHANNEL = 3
 _MISC_NOTIFY_QUEUE_LIMIT = 8
-_MISC_PCA2131_MAX_EXT = 24
+_MISC_MAX_VAL = 23
+_MISC_MAX_ARG = 22
+_MISC_PCA2131_MAX_EXT = 21
 
 _MISC_PERM_NONE = 0
 _MISC_PERM_GET = 1
@@ -65,15 +67,17 @@ _MISC_DEVICE_MASKS = {
     _MISC_COMBO_PHY: 0x00000007,
 }
 
-# Exact generated mx952evk ctrlPerms projection.
+# Exact generated mx952evk ctrlPerms projection. Numeric agent IDs are used
+# because this table is constructed before the lower core layer defines its
+# symbolic AGENT_* constants.
 _MISC_CONTROL_PERMISSIONS = {
-    AGENT_M7: {
+    0: {
         _MISC_BRD_BUTTON: _MISC_PERM_NOTIFY,
         _MISC_BRD_TEST: _MISC_PERM_ALL,
         _MISC_BRD_PCA2131: _MISC_PERM_ALL,
     },
-    AGENT_AP_S: {},
-    AGENT_AP_NS: {
+    1: {},
+    2: {
         _MISC_PDM_CLK_SEL: _MISC_PERM_ALL,
         _MISC_MQS1_SETTINGS: _MISC_PERM_ALL,
         _MISC_SAI3_MCLK: _MISC_PERM_ALL,
@@ -109,7 +113,7 @@ _MISC_ORIGINAL_GCR = _MISC_ORIGINAL_VALUE
 _MISC_IS_AP = size >= 0x1400
 _MISC_REQUEST_CHANNEL = None
 _MISC_PRE_HEADER = 0
-_MISC_PRE_WORDS = [0] * 24
+_MISC_PRE_WORDS = [0] * 25
 
 if request.IsWrite and request.Offset == 0x114:
     if _MISC_IS_AP and (_MISC_ORIGINAL_GCR & (1 << 2)):
@@ -313,7 +317,7 @@ def _misc_process_control_set(channel, agent_id, words):
         _misc_status(channel, SCMI_DENIED)
         return
     num_val = words[1]
-    if num_val > 8:
+    if num_val > _MISC_MAX_VAL:
         _misc_status(channel, SCMI_INVALID_PARAMETERS)
         return
     if is_board:
@@ -355,7 +359,7 @@ def _misc_process_control_action(channel, agent_id, words):
         _misc_status(channel, SCMI_DENIED)
         return
     num_arg = words[2]
-    if num_arg > 8:
+    if num_arg > _MISC_MAX_ARG:
         _misc_status(channel, SCMI_INVALID_PARAMETERS)
         return
     if not is_board:
