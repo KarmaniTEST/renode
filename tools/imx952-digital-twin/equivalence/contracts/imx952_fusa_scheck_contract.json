@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "target": "i.MX952 EVK B0",
+  "source": {
+    "repository": "nxp-imx/imx-sm",
+    "commit": "44f76dcb32945a60e08ea0133700b820349efbd3",
+    "fusa_protocol": {
+      "path": "sm/rpc/scmi/rpc_scmi_fusa.c",
+      "git_blob_sha": "3b246af8595ca3d693b85230bf035bc5b0059135"
+    },
+    "lmm_fusa_backend": {
+      "path": "sm/lmm/lmm_fusa.c",
+      "git_blob_sha": "1f091a9b95af04f5ba137ce23b565da60c3fc3bd"
+    },
+    "generated_agent_config": {
+      "path": "configs/mx952evk/config_scmi.h",
+      "git_blob_sha": "75db444cccfdef07de458cfc210211ee7de13796"
+    }
+  },
+  "protocol": {
+    "id": "0x83",
+    "version": "0x00010000",
+    "visible_agents": [0],
+    "agent": "M7",
+    "permission": "ALL",
+    "commands": [
+      {
+        "id": "0x0B",
+        "name": "FUSA_SCHECK_EVNTRIG",
+        "required_permission": "EXCLUSIVE",
+        "pinned_backend_behavior": "Return success after accepting the S-EENV request; the pinned LMM backend has no further side effect."
+      },
+      {
+        "id": "0x0E",
+        "name": "FUSA_SCHECK_TEST_EXEC",
+        "required_permission": "SET",
+        "request_words": ["targetTestId"],
+        "pinned_backend_behavior": "Return success for the caller-provided targetTestId; the pinned LMM backend has no test execution or range validation."
+      }
+    ],
+    "message_attributes": "Both command IDs are advertised as implemented with attributes value zero."
+  },
+  "executable_model": {
+    "layer": "scripts/pydev/nxp_imx952_system_manager_fusa_scheck.py",
+    "lower_layer": "scripts/pydev/nxp_imx952_system_manager_fusa.py",
+    "event_count_offset": "0x200",
+    "last_test_id_offset": "0x204",
+    "test_exec_count_offset": "0x208",
+    "instrumentation_classification": "Deterministic qualification evidence only; not i.MX952 production registers."
+  },
+  "qualification_evidence": [
+    "tests/platforms/NXP_IMX952_FUSA_SCHECK.robot",
+    "tools/imx952-digital-twin/equivalence/check_fusa_scheck_contract.py"
+  ],
+  "qualification_boundary": [
+    "This contract closes the software-visible SCMI command surface for the two S-check commands at the pinned NXP source boundary.",
+    "It proves M7-only discovery, command acceptance, request capture and deterministic invocation accounting.",
+    "It does not claim SCST or SAF execution, physical fault suppression, hardware diagnostic coverage, reset escalation, safety reaction timing or silicon equivalence."
+  ]
+}
