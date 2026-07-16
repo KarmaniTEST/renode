@@ -1,5 +1,5 @@
 {
-  "schema_version": 6,
+  "schema_version": 7,
   "target": "i.MX952 EVK",
   "source": {
     "repository": "nxp-imx/imx-sm",
@@ -9,6 +9,8 @@
     "protocol_contract": "sm/rpc/scmi/proto.md",
     "clock_header": "devices/MIMX952/sm/dev_sm_clock.h",
     "clock_protocol": "sm/rpc/scmi/rpc_scmi_clock.c",
+    "pinctrl_header": "devices/MIMX952/sm/dev_sm_pin.h",
+    "pinctrl_protocol": "sm/rpc/scmi/rpc_scmi_pinctrl.c",
     "performance_domain_header": "devices/MIMX952/sm/dev_sm_perf.h",
     "power_domain_header": "devices/MIMX952/sm/dev_sm_power.h",
     "sensor_header": "devices/MIMX952/sm/dev_sm_sensor.h",
@@ -30,6 +32,8 @@
       "domain_id": 4,
       "secure": false,
       "clock_permission_count": 5,
+      "pinctrl_pin_permission_count": 2,
+      "pinctrl_daisy_permission_count": 7,
       "performance_domains": [2],
       "readable_device_sensors": [0],
       "lmm_full_control": [2],
@@ -45,6 +49,8 @@
       "domain_id": 3,
       "secure": true,
       "clock_permission_count": 9,
+      "pinctrl_pin_permission_count": 0,
+      "pinctrl_daisy_permission_count": 0,
       "performance_domains": [3, 7],
       "readable_device_sensors": [],
       "lmm_full_control": [],
@@ -61,6 +67,8 @@
       "domain_id": 3,
       "secure": false,
       "clock_permission_count": 92,
+      "pinctrl_pin_permission_count": 131,
+      "pinctrl_daisy_permission_count": 125,
       "performance_domains": [3, 5, 7, 8, 9, 10, 11],
       "readable_device_sensors": [1],
       "set_only_device_sensors": [0],
@@ -80,11 +88,7 @@
       "devices/MIMX952/sm/dev_sm_clock.h": "c3b6289c5263bc208f7942055516592177c0c31fcf876da9d1b9f720ffd7aa9f",
       "configs/mx952evk/config_scmi.h": "608e103fa601f33825d1c669c4aeb70e77d7fe9ae86a0fd46326e87b183e68d4"
     },
-    "agent_counts": {
-      "0": 5,
-      "1": 9,
-      "2": 92
-    },
+    "agent_counts": {"0": 5, "1": 9, "2": 92},
     "semantics": [
       "SCMI Clock PROTOCOL_ATTRIBUTES keeps the global 198-clock ID space.",
       "CLOCK_GET_PERMISSIONS reports source-derived per-agent mutation permissions.",
@@ -93,57 +97,52 @@
       "Clock permission equivalence is functional evidence; physical clock rates, parent topology, enable delays and timing remain hardware-correlation gates."
     ]
   },
+  "pinctrl_permissions": {
+    "global_pin_count": 140,
+    "global_daisy_count": 135,
+    "compact_contract": "tools/imx952-digital-twin/equivalence/contracts/imx952_pinctrl_permissions.contract.json",
+    "source_hashes": {
+      "devices/MIMX952/sm/dev_sm_pin.h": "aab6757a0706dc73151819b66969af3208941a6edb6f159b348c30dc605aba51",
+      "configs/mx952evk/config_scmi.h": "608e103fa601f33825d1c669c4aeb70e77d7fe9ae86a0fd46326e87b183e68d4"
+    },
+    "agent_pin_counts": {"0": 2, "1": 0, "2": 131},
+    "agent_daisy_counts": {"0": 7, "1": 0, "2": 125},
+    "semantics": [
+      "SCMI Pinctrl PROTOCOL_ATTRIBUTES keeps the global 140-pin inventory.",
+      "Valid pin attributes and settings remain globally addressable for read-only discovery.",
+      "Pin configuration and request operations require source-derived EXCLUSIVE-or-higher pin permission.",
+      "Daisy configuration requires an independently source-derived EXCLUSIVE-or-higher daisy permission.",
+      "Pinctrl functional state does not prove pad electrical behavior, mux side effects, ownership timing or signal propagation."
+    ]
+  },
   "performance_domains": [
-    {"id": 0, "name": "M33"},
-    {"id": 1, "name": "WAKEUP"},
-    {"id": 2, "name": "M7"},
-    {"id": 3, "name": "DRAM"},
-    {"id": 4, "name": "HSIO"},
-    {"id": 5, "name": "NPU"},
-    {"id": 6, "name": "NOC"},
-    {"id": 7, "name": "A55"},
-    {"id": 8, "name": "GPU"},
-    {"id": 9, "name": "VPU"},
-    {"id": 10, "name": "CAM"},
-    {"id": 11, "name": "DISP"}
+    {"id": 0, "name": "M33"}, {"id": 1, "name": "WAKEUP"}, {"id": 2, "name": "M7"},
+    {"id": 3, "name": "DRAM"}, {"id": 4, "name": "HSIO"}, {"id": 5, "name": "NPU"},
+    {"id": 6, "name": "NOC"}, {"id": 7, "name": "A55"}, {"id": 8, "name": "GPU"},
+    {"id": 9, "name": "VPU"}, {"id": 10, "name": "CAM"}, {"id": 11, "name": "DISP"}
   ],
   "performance_levels": [
-    {"id": 0, "name": "PRK"},
-    {"id": 1, "name": "LOW"},
-    {"id": 2, "name": "NOM"},
-    {"id": 3, "name": "ODV"}
+    {"id": 0, "name": "PRK"}, {"id": 1, "name": "LOW"},
+    {"id": 2, "name": "NOM"}, {"id": 3, "name": "ODV"}
   ],
   "device_sensors": [
     {"id": 0, "name": "TEMP_ANA", "source_symbol": "DEV_SM_SENSOR_TEMP_ANA"},
     {"id": 1, "name": "TEMP_A55", "source_symbol": "DEV_SM_SENSOR_TEMP_A55"}
   ],
   "logical_machines": [
-    {"id": 1, "name": "M7 logical machine"},
-    {"id": 2, "name": "AP logical machine"}
+    {"id": 1, "name": "M7 logical machine"}, {"id": 2, "name": "AP logical machine"}
   ],
   "bbm_resources": {
     "gprs": [0, 1, 2, 3, 4, 5, 6, 7],
-    "rtcs": [
-      {"id": 0, "name": "BBNSM"},
-      {"id": 1, "name": "PCA2131"}
-    ],
-    "buttons": [
-      {"id": 0, "name": "BBM_BUTTON_0"}
-    ]
+    "rtcs": [{"id": 0, "name": "BBNSM"}, {"id": 1, "name": "PCA2131"}],
+    "buttons": [{"id": 0, "name": "BBM_BUTTON_0"}]
   },
   "misc_first_slice": {
     "agent": "AP-NS",
-    "controls": [
-      {"id": 9, "name": "COMBO_PHY", "permission": "ALL"}
-    ],
+    "controls": [{"id": 9, "name": "COMBO_PHY", "permission": "ALL"}],
     "functional_metadata": [
-      "MISC_DISCOVER_BUILD_INFO",
-      "MISC_RESET_REASON",
-      "MISC_SI_INFO",
-      "MISC_CFG_INFO",
-      "MISC_SYSLOG",
-      "MISC_BOARD_INFO",
-      "MISC_DDR_INFO_GET"
+      "MISC_DISCOVER_BUILD_INFO", "MISC_RESET_REASON", "MISC_SI_INFO",
+      "MISC_CFG_INFO", "MISC_SYSLOG", "MISC_BOARD_INFO", "MISC_DDR_INFO_GET"
     ],
     "qualification_boundary": "Physical fuse-derived numeric silicon fields remain zero; COMBO_PHY is stateful functional control only and does not claim PHY electrical equivalence."
   },
@@ -157,53 +156,24 @@
     {"global_id": 6, "agent": "AP-NS", "direction": "P2A_NOTIFY"}
   ],
   "linux_visible_protocols": [
-    {"id": "0x11", "name": "POWER"},
-    {"id": "0x12", "name": "SYSTEM_POWER"},
-    {"id": "0x13", "name": "PERFORMANCE"},
-    {"id": "0x14", "name": "CLOCK"},
-    {"id": "0x15", "name": "SENSOR"},
-    {"id": "0x19", "name": "PINCTRL"},
-    {"id": "0x80", "name": "NXP_LMM"},
-    {"id": "0x81", "name": "NXP_BBM"},
-    {"id": "0x82", "name": "NXP_CPU"},
-    {"id": "0x84", "name": "NXP_MISC"}
+    {"id": "0x11", "name": "POWER"}, {"id": "0x12", "name": "SYSTEM_POWER"},
+    {"id": "0x13", "name": "PERFORMANCE"}, {"id": "0x14", "name": "CLOCK"},
+    {"id": "0x15", "name": "SENSOR"}, {"id": "0x19", "name": "PINCTRL"},
+    {"id": "0x80", "name": "NXP_LMM"}, {"id": "0x81", "name": "NXP_BBM"},
+    {"id": "0x82", "name": "NXP_CPU"}, {"id": "0x84", "name": "NXP_MISC"}
   ],
   "known_protocol_versions": {
-    "0x11": "0x00030001",
-    "0x12": "0x00020001",
-    "0x13": "0x00040000",
-    "0x14": "0x00030000",
-    "0x15": "0x00030001",
-    "0x16": "0x00030001",
-    "0x17": "0x00020001",
-    "0x80": "0x00010001",
-    "0x81": "0x00010000",
-    "0x84": "0x00010001"
+    "0x11": "0x00030001", "0x12": "0x00020001", "0x13": "0x00040000",
+    "0x14": "0x00030000", "0x15": "0x00030001", "0x16": "0x00030001",
+    "0x17": "0x00020001", "0x19": "0x00010000", "0x80": "0x00010001",
+    "0x81": "0x00010000", "0x84": "0x00010001"
   },
   "candidate_implemented_protocols": [
-    "0x10",
-    "0x11",
-    "0x12",
-    "0x13",
-    "0x14",
-    "0x15",
-    "0x19",
-    "0x80",
-    "0x81",
-    "0x82",
-    "0x84"
+    "0x10", "0x11", "0x12", "0x13", "0x14", "0x15", "0x19", "0x80", "0x81", "0x82", "0x84"
   ],
   "pinned_not_yet_advertised": [
-    {
-      "id": "0x16",
-      "name": "RESET",
-      "reason": "The Linux-visible i.MX952 target contract does not expose this protocol; exact EVK reset-domain permissions must be established before optional advertisement."
-    },
-    {
-      "id": "0x17",
-      "name": "VOLTAGE",
-      "reason": "The Linux-visible i.MX952 target contract does not expose this protocol; exact EVK voltage-domain permissions must be established before optional advertisement."
-    }
+    {"id": "0x16", "name": "RESET", "reason": "The Linux-visible i.MX952 target contract does not expose this protocol; exact EVK reset-domain permissions must be established before optional advertisement."},
+    {"id": "0x17", "name": "VOLTAGE", "reason": "The Linux-visible i.MX952 target contract does not expose this protocol; exact EVK voltage-domain permissions must be established before optional advertisement."}
   ],
   "model_refactor_requirements": [
     "Represent SCMI agent identity explicitly instead of treating all A55 channels as one generic agent.",
@@ -214,12 +184,14 @@
     "Keep protocol behavior and permissions traceable to the pinned generated configuration.",
     "Regenerate and compare the exact clock permission map from the pinned NXP source on every qualification run.",
     "Preserve the global 198-clock ID space while enforcing source-derived per-agent mutation permissions and restricted attributes.",
+    "Regenerate and compare the exact Pinctrl pin/daisy permission map from the pinned NXP source on every qualification run.",
+    "Preserve the global 140-pin inventory while enforcing independent source-derived pin and daisy mutation permissions.",
     "Do not convert SET-only sensor permissions into read access.",
     "Do not convert AP-NS LMM NOTIFY permission into lifecycle-control permission.",
     "Do not expose AP-S to BBM because the pinned EVK configuration grants it no BBM resources.",
     "Do not expose MISC controls beyond explicit generated-config permissions; first-slice AP-NS access is COMBO_PHY only.",
     "Do not fabricate physical fuse-derived MISC silicon fields; keep unmeasured numeric fields zero until EVK evidence exists.",
-    "Keep deterministic sensor, RTC, button, reset-reason and logical-machine timing/state inputs classified as functional-model evidence until correlated with the physical EVK.",
+    "Keep deterministic sensor, RTC, button, reset-reason, pin state and logical-machine timing/state inputs classified as functional-model evidence until correlated with the physical EVK.",
     "Keep modeled P2A delivery separate from interrupt-latency and cycle-accuracy claims."
   ]
 }
