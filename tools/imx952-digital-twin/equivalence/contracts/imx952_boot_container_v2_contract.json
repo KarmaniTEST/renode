@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "target": {
+    "soc": "i.MX952",
+    "revision": "B0",
+    "board": "i.MX952 EVK"
+  },
+  "source": {
+    "repository": "nxp-imx/imx-mkimage",
+    "commit": "1b577853ae1afe1f26cdef27548da52fb424af48",
+    "container_implementation": {
+      "path": "src/imx8qxb0.c",
+      "git_blob_sha": "00e578039a73c7bc8ab9e0f0765b4a72ccc9b51f"
+    },
+    "common_header": {
+      "path": "src/mkimage_common.h",
+      "git_blob_sha": "fc5613ff62c1aa9ae8ad60966a9aa8ab271bbe38"
+    },
+    "imx952_recipe": {
+      "path": "iMX952/soc.mak",
+      "git_blob_sha": "4316962978802c615f6d55a8c32b110aa8955950"
+    }
+  },
+  "container_format": {
+    "endianness": "little",
+    "tag": "0x87",
+    "version": 2,
+    "scan_alignment": "0x400",
+    "header_size": 16,
+    "header_struct": "<BHBIHBBHH",
+    "image_descriptor_size": 128,
+    "image_descriptor_struct": "<IIQQII64s32s",
+    "signature_header_size": 16,
+    "signature_header_struct": "<BHBHHHHI",
+    "maximum_images": 16,
+    "exact_header_length_rule": "16 + num_images * 128 + 16",
+    "exact_signature_offset_rule": "16 + num_images * 128"
+  },
+  "hash_contract": {
+    "selector_mask": "0x300",
+    "algorithms": {
+      "0x000": {"name": "sha256", "digest_bytes": 32},
+      "0x100": {"name": "sha384", "digest_bytes": 48},
+      "0x200": {"name": "sha512", "digest_bytes": 64},
+      "0x300": {"name": "sm3", "digest_bytes": 32}
+    },
+    "scope": "Hash the exact descriptor size bytes at container_offset + image.offset, including image padding present in the container."
+  },
+  "pinned_stage_destinations": {
+    "ATF": "0x8A200000",
+    "U_BOOT": "0x90200000",
+    "TEE": "0x8C000000",
+    "M7_A55_ALIAS": "0x303C0000",
+    "M33_OEI": "0x1FFC0000"
+  },
+  "executable": {
+    "parser": "tools/imx952-digital-twin/equivalence/parse_imx95_container_v2.py",
+    "checker": "tools/imx952-digital-twin/equivalence/check_boot_container_contract.py",
+    "unit_test": "tools/imx952-digital-twin/equivalence/tests/test_imx95_container_v2.py"
+  },
+  "readiness_policy": {
+    "READY_FOR_EXECUTION": "Every parsed container is structurally and hash valid and every explicitly required pinned stage is present.",
+    "NOT_ASSERTED": "The file is structurally valid but no execution-stage requirement was requested.",
+    "FAIL": "No valid container is found or any structure, range, hash or required-stage gate fails."
+  },
+  "qualification_boundary": [
+    "Signature-block fields are parsed but cryptographic signatures are not authenticated.",
+    "The parser does not execute or emulate Boot ROM, ELE, OEI, DDR training, ATF or U-Boot.",
+    "Synthetic unit-test containers prove parser behavior only and are never accepted as production boot evidence.",
+    "Production execution readiness requires exact artifact hashes and real signed production containers supplied through the boot manifest."
+  ]
+}
