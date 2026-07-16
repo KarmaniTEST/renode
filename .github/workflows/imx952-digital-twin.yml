@@ -160,6 +160,7 @@ jobs:
             -v "$PWD/scripts/pydev/nxp_imx952_system_manager_misc.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_misc.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_system_manager_clock.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_clock.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_system_manager_pinctrl.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_pinctrl.py:ro" \
+            -v "$PWD/scripts/pydev/nxp_imx952_system_manager_fusa.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager_fusa.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_ele.py:/opt/renode/scripts/pydev/nxp_imx952_ele.py:ro" \
             -v "$PWD/scripts/pydev/nxp_imx952_lpi2c7.py:/opt/renode/scripts/pydev/nxp_imx952_lpi2c7.py:ro" \
             -w /workspace \
@@ -171,11 +172,12 @@ jobs:
               tests/platforms/NXP_IMX952_MISC.robot \
               tests/platforms/NXP_IMX952_CLOCK_PERMISSIONS.robot \
               tests/platforms/NXP_IMX952_PINCTRL_PERMISSIONS.robot \
+              tests/platforms/NXP_IMX952_FUSA_PRIORITY.robot \
             > imx952-qualification.log 2>&1
           status=$?
           echo "Qualification exit status: ${status}"
           echo "----- qualification log tail -----"
-          tail -n 550 imx952-qualification.log || true
+          tail -n 650 imx952-qualification.log || true
           echo "----- end qualification log tail -----"
           exit "${status}"
 
@@ -226,10 +228,12 @@ jobs:
           test -f scripts/pydev/nxp_imx952_system_manager_misc.py
           test -f scripts/pydev/nxp_imx952_system_manager_clock.py
           test -f scripts/pydev/nxp_imx952_system_manager_pinctrl.py
+          test -f scripts/pydev/nxp_imx952_system_manager_fusa.py
           test -f tests/platforms/NXP_IMX952_FULL_EQUIVALENCE.robot
           test -f tests/platforms/NXP_IMX952_BBM.robot
           test -f tests/platforms/NXP_IMX952_MISC.robot
           test -f tests/platforms/NXP_IMX952_CLOCK_PERMISSIONS.robot
           test -f tests/platforms/NXP_IMX952_PINCTRL_PERMISSIONS.robot
+          test -f tests/platforms/NXP_IMX952_FUSA_PRIORITY.robot
           test -f scripts/single-node/nxp_imx952_evk_full.resc
           test -f scripts/single-node/nxp_imx952_evk_heterogeneous_demo.resc
