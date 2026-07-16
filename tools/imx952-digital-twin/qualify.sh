@@ -4,8 +4,12 @@ set -euo pipefail
 MODE="${1:-auto}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-TEST_PATH="tests/platforms/NXP_IMX952.robot"
+TEST_PATHS=(
+    "tests/platforms/NXP_IMX952.robot"
+    "tests/platforms/NXP_IMX952_MU7_Firmware.robot"
+)
 LOG_PATH="${IMX952_QUALIFICATION_LOG:-${ROOT_DIR}/imx952-qualification.log}"
+RENODE_IMAGE="${RENODE_IMAGE:-antmicro/renode:nightly-dotnet}"
 
 has_built_repository_runner() {
     [[ -x "${ROOT_DIR}/test.sh" ]] && \
@@ -17,7 +21,7 @@ run_local() {
 
     if has_built_repository_runner; then
         echo "[i.MX952] Running qualification with the built repository test runner"
-        ./test.sh --show-log "${TEST_PATH}"
+        ./test.sh --show-log "${TEST_PATHS[@]}"
         return
     fi
 
@@ -31,15 +35,18 @@ run_docker() {
         return 1
     fi
 
-    echo "[i.MX952] Running qualification in antmicro/renode:nightly-dotnet"
+    echo "[i.MX952] Running qualification in ${RENODE_IMAGE}"
+    docker pull "${RENODE_IMAGE}"
+    docker image inspect "${RENODE_IMAGE}" --format '[i.MX952] Runtime image ID: {{.Id}}' || true
+
     docker run --rm \
         -v "${ROOT_DIR}:/workspace" \
         -v "${ROOT_DIR}/scripts/pydev/nxp_imx952_system_manager.py:/opt/renode/scripts/pydev/nxp_imx952_system_manager.py:ro" \
         -v "${ROOT_DIR}/scripts/pydev/nxp_imx952_ele.py:/opt/renode/scripts/pydev/nxp_imx952_ele.py:ro" \
         -v "${ROOT_DIR}/scripts/pydev/nxp_imx952_lpi2c7.py:/opt/renode/scripts/pydev/nxp_imx952_lpi2c7.py:ro" \
         -w /workspace \
-        antmicro/renode:nightly-dotnet \
-        renode-test --show-log "${TEST_PATH}"
+        "${RENODE_IMAGE}" \
+        renode-test --show-log "${TEST_PATHS[@]}"
 }
 
 run_selected() {
@@ -66,5 +73,8 @@ run_selected() {
 
 mkdir -p "$(dirname "${LOG_PATH}")"
 echo "[i.MX952] Qualification log: ${LOG_PATH}"
+printf '[i.MX952] Qualification suites:'
+printf ' %s' "${TEST_PATHS[@]}"
+printf '\n'
 run_selected 2>&1 | tee "${LOG_PATH}"
 echo "[i.MX952] Qualification completed successfully"
