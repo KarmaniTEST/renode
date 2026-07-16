@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "target": "i.MX952 EVK B0",
+  "current_level": "FUNCTIONAL_MODEL",
+  "qualified_head_parent": "c9f2bf1580146ee124ea11cad474f74509022248",
+  "qualified_workflow": {
+    "name": "i.MX952 Boot Artifact Readiness",
+    "run_id": 29483260303,
+    "conclusion": "success"
+  },
+  "qualified_evidence": [
+    "pinned NXP imx-mkimage commit and source blob identities",
+    "exact B0 container-v2 header/image/signature-header parsing",
+    "container tag 0x87 and version 2 enforcement",
+    "image range, overlap and descriptor hash validation",
+    "ATF 0x8A200000 and U-Boot 0x90200000 stage discovery",
+    "fail-closed production artifact manifest and SHA-256 identity gate",
+    "production template remains BLOCKED without real artifacts and hashes",
+    "explicit synthetic fixture classification",
+    "verified Renode LoadBinary source offset and size behavior",
+    "ATF and U-Boot stage bytes loaded at pinned destinations",
+    "ATF entry point selected while all A55 cores remain halted",
+    "operator-controlled startVerifiedAtf macro is generated but not executed"
+  ],
+  "entry_points": [
+    "tools/imx952-digital-twin/equivalence/parse_imx95_container_v2.py",
+    "tools/imx952-digital-twin/equivalence/validate_boot_readiness.py",
+    "tools/imx952-digital-twin/equivalence/generate_boot_execution_plan.py",
+    "tools/imx952-digital-twin/equivalence/create_boot_execution_fixture.py",
+    "tools/imx952-digital-twin/equivalence/check_boot_container_contract.py",
+    "tools/imx952-digital-twin/equivalence/contracts/imx952_boot_container_v2_contract.json",
+    "tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_boot_artifacts.template.json",
+    "tests/platforms/NXP_IMX952_BOOT_EXECUTION_PLAN.robot",
+    ".github/workflows/imx952-boot-readiness.yml"
+  ],
+  "blocked_gates": [
+    "real production artifact files and pinned hashes",
+    "Boot ROM reset state",
+    "physical boot-source selection",
+    "AHAB cryptographic signature authentication",
+    "complete ELE boot policy and lifecycle",
+    "OEI execution",
+    "DDR training execution and physical correlation",
+    "SPL execution",
+    "ATF execution and handoff",
+    "U-Boot execution and handoff",
+    "production UART boot trace differential",
+    "physical-board differential"
+  ],
+  "claim_boundary": [
+    "The green synthetic loader test proves parser/readiness/byte-range loading behavior only.",
+    "It does not prove that production ATF or U-Boot executes successfully.",
+    "It does not prove Boot ROM, ELE, AHAB, OEI, DDR training or physical boot equivalence.",
+    "The full-physical qualification gate remains fail-closed."
+  ]
+}
