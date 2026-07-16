@@ -11,7 +11,7 @@ from validate_boot_readiness import validate_readiness
 
 REQUIRED_STAGES = ("ATF", "U_BOOT")
 DEFAULT_PLATFORM = "platforms/boards/nxp_imx952_evk_full.repl"
-A55_CPUS = tuple(f"sysbus.a55_{index}" for index in range(4))
+A55_CPUS = tuple(f"a55_{index}" for index in range(4))
 
 
 def _one(items, message):
@@ -67,20 +67,23 @@ def generate_plan(manifest: Dict[str, Any], root: Path, platform=DEFAULT_PLATFOR
     lines = [
         ':name: i.MX952 verified post-authentication execution candidate',
         ':description: Loads hash-verified ATF and U-Boot; no Boot ROM/ELE/AHAB success claim',
-        '', '$name?="imx952-verified-post-auth"', 'using sysbus', 'mach create $name',
+        '', '$name?="imx952-verified-post-auth"',
+        'using sysbus',
+        'using sysbus.a55Cluster',
+        'mach create $name',
         f'machine LoadPlatformDescription @{platform}', '',
         '# Keep every A55 halted while verified stage bytes are loaded.',
     ] + [f'{cpu} IsHalted true' for cpu in A55_CPUS]
     for step in steps:
         lines += [
             '', f'# {step["stage"]}: verified descriptor hash {step["calculated_hash"]}',
-            f'sysbus LoadBinary @{source} {step["destination"]} sysbus.a55_0 '
-            f'{step["source_offset"]} 0x{step["size_bytes"]:X}',
+            f'sysbus LoadBinary @{source} {step["destination"]} '
+            f'cpu=a55_0 offset={step["source_offset"]} size=0x{step["size_bytes"]:X}',
         ]
     lines += [
-        '', f'sysbus.a55_0 PC 0x{entry:X}', '',
+        '', f'a55_0 PC 0x{entry:X}', '',
         '# Explicit operator-controlled start; generation never auto-runs the CPU.',
-        'macro startVerifiedAtf', '"""', '    sysbus.a55_0 IsHalted false', '"""', ''
+        'macro startVerifiedAtf', '"""', '    a55_0 IsHalted false', '"""', ''
     ]
     return {
         "verdict": "PASS",
