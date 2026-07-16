@@ -11,7 +11,10 @@ on:
       - "platforms/boards/nxp_imx952_evk_full.repl"
       - "tests/platforms/NXP_IMX952_MISC.robot"
       - "tools/imx952-digital-twin/equivalence/check_misc_contract.py"
+      - "tools/imx952-digital-twin/equivalence/check_system_manager_misc_overlay.py"
       - "tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json"
+      - "tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_misc_overlay.json"
+      - "tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_contract.json"
       - ".github/workflows/imx952-misc.yml"
   pull_request:
     paths:
@@ -20,7 +23,10 @@ on:
       - "platforms/boards/nxp_imx952_evk_full.repl"
       - "tests/platforms/NXP_IMX952_MISC.robot"
       - "tools/imx952-digital-twin/equivalence/check_misc_contract.py"
+      - "tools/imx952-digital-twin/equivalence/check_system_manager_misc_overlay.py"
       - "tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json"
+      - "tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_misc_overlay.json"
+      - "tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_contract.json"
       - ".github/workflows/imx952-misc.yml"
 
 permissions:
@@ -36,13 +42,18 @@ jobs:
       - name: Checkout candidate
         uses: actions/checkout@v4
 
-      - name: Validate MISC source contract
+      - name: Validate MISC source and System Manager overlay contracts
         run: |
           python3 -m json.tool \
             tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json \
             >/dev/null
+          python3 -m json.tool \
+            tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_misc_overlay.json \
+            >/dev/null
           python3 \
             tools/imx952-digital-twin/equivalence/check_misc_contract.py
+          python3 \
+            tools/imx952-digital-twin/equivalence/check_system_manager_misc_overlay.py
 
       - name: Pull official Renode nightly runtime
         run: docker pull antmicro/renode:nightly-dotnet
@@ -91,4 +102,6 @@ jobs:
           test -f scripts/pydev/nxp_imx952_system_manager_misc.py
           test -f tests/platforms/NXP_IMX952_MISC.robot
           test -f tools/imx952-digital-twin/equivalence/check_misc_contract.py
+          test -f tools/imx952-digital-twin/equivalence/check_system_manager_misc_overlay.py
           test -f tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json
+          test -f tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_misc_overlay.json
