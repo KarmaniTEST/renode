@@ -61,7 +61,7 @@ M7 Base Discovery Advertises FuSa And AP Secure Does Not
     ${m7_status}=    Read Dword    ${M7_PAYLOAD}
     ${m7_attrs}=     Read Dword    ${M7_RESPONSE1}
     Should Be Equal As Numbers    ${m7_status}    0
-    Should Be Equal As Numbers    ${m7_attrs}     0x309
+    Should Be Equal As Numbers    ${m7_attrs}     0x30B
 
     Write Dword    ${M7_PAYLOAD}    0
     Call M7        0x00004006
@@ -71,10 +71,10 @@ M7 Base Discovery Advertises FuSa And AP Secure Does Not
     ${list_word1}=     Read Dword    ${M7_RESPONSE3}
     ${list_word2}=     Read Dword    0x4461102C
     Should Be Equal As Numbers    ${list_status}    0
-    Should Be Equal As Numbers    ${list_count}     9
+    Should Be Equal As Numbers    ${list_count}     11
     Should Be Equal As Numbers    ${list_word0}     0x14131211
     Should Be Equal As Numbers    ${list_word1}     0x82801915
-    Should Be Equal As Numbers    ${list_word2}     0x83
+    Should Be Equal As Numbers    ${list_word2}     0x00838481
 
     Call AP S    0x00004001
     ${aps_status}=    Read Dword    ${AP_S_PAYLOAD}
