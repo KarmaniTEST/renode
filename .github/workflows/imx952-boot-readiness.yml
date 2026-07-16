@@ -98,6 +98,7 @@ jobs:
             python3 tools/imx952-digital-twin/equivalence/generate_boot_execution_plan.py \
               --manifest boot-fixture/manifest.json \
               --root /workspace/boot-fixture \
+              --platform /workspace/platforms/boards/nxp_imx952_evk_full.repl \
               --output-resc /workspace/boot-fixture/imx952-post-auth.resc \
               --output-json /workspace/boot-fixture/imx952-post-auth.json \
               --allow-synthetic-fixture
