@@ -102,12 +102,12 @@ FuSa Version Attributes And Message Inventory Match Pinned Source
     Should Be Equal As Numbers    ${attrs1}         0x00590101
     Should Be Equal As Numbers    ${attrs2}         0
 
-    Write Dword    ${M7_PAYLOAD}    5
+    Write Dword    ${M7_PAYLOAD}    8
     Call M7        0x00020C02
     ${supported}=    Read Dword    ${M7_PAYLOAD}
     Should Be Equal As Numbers    ${supported}    0
 
-    Write Dword    ${M7_PAYLOAD}    8
+    Write Dword    ${M7_PAYLOAD}    0x0B
     Call M7        0x00020C02
     ${not_supported}=    Read Dword    ${M7_PAYLOAD}
     Should Be Equal As Numbers    ${not_supported}    0xFFFFFFFC
