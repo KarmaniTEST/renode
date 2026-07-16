@@ -1,5 +1,5 @@
 {
-  "schema_version": 10,
+  "schema_version": 11,
   "target": "i.MX952 EVK B0",
   "policy": "A subsystem may be promoted only when every required gate has reproducible evidence against the pinned physical reference.",
   "levels": [
@@ -41,6 +41,8 @@
         "M7-only SCMI FuSa 1.0 with global 89-fault inventory and exact source-permitted faults WDOG5/SW0/SW1/M7_LOCKUP/M7_RESET",
         "FuSa F-EENV and S-EENV state/get/set/notify behavior",
         "FuSa FAULT_GET, FAULT_SET and 32-fault-window FAULT_GROUP_NOTIFY behavior with exact permission enforcement",
+        "FuSa FUSA_SCHECK_EVNTRIG and FUSA_SCHECK_TEST_EXEC command acceptance at the pinned NXP LMM backend boundary",
+        "deterministic FuSa S-check invocation counts and last targetTestId evidence without fabricated SCST/SAF execution",
         "functional ordered FuSa state and fault notifications through M7 priority SMT channel 2 and MU doorbell 2",
         "FuSa fault-event message ID 2 with deterministic set/recovery and command-generated clear evidence",
         "NXP LMM 1.1 functional lifecycle and notification permission separation",
@@ -60,10 +62,12 @@
         "tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.generated.json",
         "tools/imx952-digital-twin/equivalence/contracts/imx952_pinctrl_permissions.contract.json",
         "tools/imx952-digital-twin/equivalence/contracts/imx952_fusa_priority_contract.json",
+        "tools/imx952-digital-twin/equivalence/contracts/imx952_fusa_scheck_contract.json",
         "tools/imx952-digital-twin/equivalence/contracts/imx952_bbm_contract.json",
         "tools/imx952-digital-twin/equivalence/contracts/imx952_misc_contract.json",
         "tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_misc_overlay.json",
         "tools/imx952-digital-twin/equivalence/check_fusa_contract.py",
+        "tools/imx952-digital-twin/equivalence/check_fusa_scheck_contract.py",
         "tools/imx952-digital-twin/equivalence/check_bbm_notification_contract.py",
         "tools/imx952-digital-twin/equivalence/check_misc_contract.py",
         "tools/imx952-digital-twin/equivalence/check_system_manager_misc_overlay.py",
@@ -75,6 +79,7 @@
         "tests/platforms/NXP_IMX952_PINCTRL_PERMISSIONS.robot",
         "tests/platforms/NXP_IMX952_FUSA_PRIORITY.robot",
         "tests/platforms/NXP_IMX952_FUSA_FAULTS.robot",
+        "tests/platforms/NXP_IMX952_FUSA_SCHECK.robot",
         ".github/workflows/imx952-fusa.yml"
       ],
       "missing_gates": [
@@ -89,7 +94,7 @@
         "physical_fccu_safety_island_and_fault_source_generation",
         "physical_fusa_fault_escalation_recovery_and_reset_reactions",
         "physical_fusa_priority_queue_and_safety_reaction_timing",
-        "fusa_scheck_event_trigger_and_test_execution",
+        "physical_scst_saf_execution_and_diagnostic_coverage",
         "physical_rtc_button_event_source_and_timing_correlation",
         "notification_irq_wiring_and_latency_correlation",
         "production_firmware_differential",
