@@ -1,0 +1,88 @@
+name: i.MX952 Boot Artifact Readiness
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - imx952-full-equivalence-program
+    paths:
+      - "tools/imx952-digital-twin/equivalence/parse_imx95_container_v2.py"
+      - "tools/imx952-digital-twin/equivalence/validate_boot_artifacts.py"
+      - "tools/imx952-digital-twin/equivalence/validate_boot_readiness.py"
+      - "tools/imx952-digital-twin/equivalence/check_boot_container_contract.py"
+      - "tools/imx952-digital-twin/equivalence/contracts/imx952_boot_container_v2_contract.json"
+      - "tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_boot_artifacts.template.json"
+      - "tools/imx952-digital-twin/equivalence/tests/test_imx95_container_v2.py"
+      - ".github/workflows/imx952-boot-readiness.yml"
+  pull_request:
+    paths:
+      - "tools/imx952-digital-twin/equivalence/parse_imx95_container_v2.py"
+      - "tools/imx952-digital-twin/equivalence/validate_boot_artifacts.py"
+      - "tools/imx952-digital-twin/equivalence/validate_boot_readiness.py"
+      - "tools/imx952-digital-twin/equivalence/check_boot_container_contract.py"
+      - "tools/imx952-digital-twin/equivalence/contracts/imx952_boot_container_v2_contract.json"
+      - "tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_boot_artifacts.template.json"
+      - "tools/imx952-digital-twin/equivalence/tests/test_imx95_container_v2.py"
+      - ".github/workflows/imx952-boot-readiness.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  boot-readiness:
+    name: Fail-closed B0 boot readiness
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v4
+
+      - name: Validate pinned container contract
+        run: |
+          python3 -m json.tool \
+            tools/imx952-digital-twin/equivalence/contracts/imx952_boot_container_v2_contract.json \
+            >/dev/null
+          python3 -m json.tool \
+            tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_boot_artifacts.template.json \
+            >/dev/null
+          python3 tools/imx952-digital-twin/equivalence/check_boot_container_contract.py
+
+      - name: Run exact container parser tests
+        run: |
+          python3 -m unittest \
+            tools/imx952-digital-twin/equivalence/tests/test_imx95_container_v2.py \
+            -v
+
+      - name: Verify production template fails closed without artifacts
+        shell: bash
+        run: |
+          set +e
+          python3 tools/imx952-digital-twin/equivalence/validate_boot_readiness.py \
+            --manifest tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_boot_artifacts.template.json \
+            --root /tmp/imx952-production-artifacts-not-provided \
+            --output imx952-boot-readiness-blocked.json
+          status=$?
+          cat imx952-boot-readiness-blocked.json
+          test "${status}" -eq 2
+          grep -q '"execution_readiness": "BLOCKED"' imx952-boot-readiness-blocked.json
+          grep -q 'required artifact hash is not pinned' imx952-boot-readiness-blocked.json
+
+      - name: Upload boot readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: imx952-boot-readiness-evidence
+          path: imx952-boot-readiness-blocked.json
+          if-no-files-found: warn
+
+      - name: Verify boot readiness entry points
+        if: success()
+        run: |
+          test -f tools/imx952-digital-twin/equivalence/parse_imx95_container_v2.py
+          test -f tools/imx952-digital-twin/equivalence/validate_boot_artifacts.py
+          test -f tools/imx952-digital-twin/equivalence/validate_boot_readiness.py
+          test -f tools/imx952-digital-twin/equivalence/check_boot_container_contract.py
+          test -f tools/imx952-digital-twin/equivalence/contracts/imx952_boot_container_v2_contract.json
+          test -f tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_boot_artifacts.template.json
+          test -f tools/imx952-digital-twin/equivalence/tests/test_imx95_container_v2.py
