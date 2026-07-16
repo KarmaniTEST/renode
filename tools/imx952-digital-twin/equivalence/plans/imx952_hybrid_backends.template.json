@@ -155,22 +155,21 @@
     }
   },
   "physical_evidence_contract": {
-    "required_fields": [
-      "board_identity",
-      "silicon_identity",
-      "firmware_manifest_sha256",
+    "identity_fields": ["board_identity", "silicon_identity"],
+    "file_fields": [
+      "firmware_manifest",
       "test_definition",
-      "digital_twin_result_sha256",
-      "physical_board_result_sha256",
-      "comparison_result",
-      "timing_tolerances"
+      "digital_twin_result",
+      "physical_board_result",
+      "comparison_report"
     ],
+    "required_fields": ["comparison_result", "timing_tolerances"],
     "required_comparison_result": "PASS"
   },
   "claim_boundary": [
     "A disabled or incomplete backend keeps its subsystem BLOCKED.",
     "A synthetic fixture may validate the gate implementation but is not subsystem evidence.",
     "Functional backend readiness does not imply physical or timing equivalence.",
-    "Full physical readiness requires immutable physical-EVK evidence and PASS differential results for every subsystem."
+    "Full physical readiness verifies immutable evidence files, EVK identity, PASS differential results and timing tolerances for every subsystem."
   ]
 }
