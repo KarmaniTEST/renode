@@ -1,5 +1,5 @@
 {
-  "schema_version": 8,
+  "schema_version": 9,
   "target": "i.MX952 EVK",
   "source": {
     "repository": "nxp-imx/imx-sm",
@@ -20,6 +20,7 @@
     "sensor_protocol": "sm/rpc/scmi/rpc_scmi_sensor.c",
     "lmm_protocol": "sm/rpc/scmi/rpc_scmi_lmm.c",
     "bbm_protocol": "sm/rpc/scmi/rpc_scmi_bbm.c",
+    "bbm_protocol_header": "sm/rpc/scmi/rpc_scmi_bbm.h",
     "bbm_device_header": "devices/MIMX952/sm/dev_sm_bbm.h",
     "bbm_board_header": "boards/mcimx952evk/sm/brd_sm_bbm.h",
     "misc_protocol": "sm/rpc/scmi/rpc_scmi_misc.c",
@@ -154,6 +155,31 @@
     ],
     "qualification_boundary": "Functional M7 FuSa state/subscription and priority queue/channel behavior only. Physical fault generation, fault commands, safety reaction timing and interrupt latency remain open."
   },
+  "bbm_notification_delivery": {
+    "contract": "tools/imx952-digital-twin/equivalence/contracts/imx952_bbm_contract.json",
+    "protocol": "0x81",
+    "version": "0x00010000",
+    "agents": ["M7", "AP-NS"],
+    "normal_transport": {
+      "M7": {"local_channel": 1, "global_smt_channel": 1, "mu_doorbell": 1},
+      "AP-NS": {"local_channel": 3, "global_smt_channel": 6, "mu_doorbell": 1}
+    },
+    "notifications": {
+      "rtc_message_id": 0,
+      "button_message_id": 1,
+      "rtc_events": ["alarm", "rollover", "updated"],
+      "button_events": ["detected"],
+      "queue_limit": 8,
+      "ordering": "FIFO while the normal P2A channel is busy"
+    },
+    "qualification_evidence": [
+      "scripts/pydev/nxp_imx952_system_manager_bbm.py",
+      "tools/imx952-digital-twin/equivalence/check_bbm_notification_contract.py",
+      "tests/platforms/NXP_IMX952_BBM_NOTIFICATIONS.robot",
+      ".github/workflows/imx952-bbm-notifications.yml"
+    ],
+    "qualification_boundary": "Functional source-derived subscription, payload, queue ordering and GSR pending-state evidence only. Physical RTC/button event generation, AP/M7 interrupt routing latency and timing correlation remain open."
+  },
   "performance_domains": [
     {"id": 0, "name": "M33"}, {"id": 1, "name": "WAKEUP"}, {"id": 2, "name": "M7"},
     {"id": 3, "name": "DRAM"}, {"id": 4, "name": "HSIO"}, {"id": 5, "name": "NPU"},
@@ -232,11 +258,13 @@
     "Regenerate and compare the exact Pinctrl pin/daisy permission map from the pinned NXP source on every qualification run.",
     "Preserve the global 140-pin inventory while enforcing independent source-derived pin and daisy mutation permissions.",
     "Keep FuSa 0x83 M7-only and validate its independent pinned priority contract on every qualification run.",
-    "Preserve separate normal and priority P2A paths; priority events must remain ordered while channel 2 is busy.",
-    "Do not treat the deterministic FuSa trigger as a production i.MX952 register or physical fault source.",
+    "Preserve separate normal and priority P2A paths; FuSa priority events must remain ordered while channel 2 is busy.",
+    "Preserve source-derived BBM RTC/button subscriptions and normal P2A FIFO ordering on M7 channel 1 and AP-NS channel 3.",
+    "Do not route BBM events through the FuSa priority queue.",
+    "Do not treat deterministic FuSa or BBM triggers as production i.MX952 registers or physical event sources.",
     "Do not convert SET-only sensor permissions into read access.",
     "Do not convert AP-NS LMM NOTIFY permission into lifecycle-control permission.",
-    "Do not expose AP-S to BBM because the pinned EVK configuration grants it no BBM resources.",
+    "Do not expose AP-S to BBM because the pinned EVK configuration grants no BBM resources.",
     "Do not expose MISC controls beyond explicit generated-config permissions; first-slice AP-NS access is COMBO_PHY only.",
     "Do not fabricate physical fuse-derived MISC silicon fields; keep unmeasured numeric fields zero until EVK evidence exists.",
     "Keep deterministic sensor, RTC, button, reset-reason, pin state, FuSa state and logical-machine timing/state inputs classified as functional-model evidence until correlated with the physical EVK.",
