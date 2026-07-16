@@ -48,6 +48,7 @@ jobs:
             --mode engineering \
             --skip-tests
           python3 tools/imx952-digital-twin/equivalence/check_system_manager_contract.py
+          python3 tools/imx952-digital-twin/equivalence/check_fusa_contract.py
           python3 -m json.tool tools/imx952-digital-twin/equivalence/AUTHORITATIVE_BASELINE.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/EQUIVALENCE_STATUS.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_system_manager_contract.json >/dev/null
@@ -57,6 +58,7 @@ jobs:
           python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.template.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.generated.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_pinctrl_permissions.contract.json >/dev/null
+          python3 -m json.tool tools/imx952-digital-twin/equivalence/contracts/imx952_fusa_priority_contract.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/profiles/imx952_evk_b0_foundation.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_physical_reference.template.json >/dev/null
           python3 -m json.tool tools/imx952-digital-twin/equivalence/plans/imx952_evk_b0_boot_artifacts.template.json >/dev/null
@@ -208,6 +210,7 @@ jobs:
             test -f tools/imx952-digital-twin/equivalence/compare_evidence.py
             test -f tools/imx952-digital-twin/equivalence/qualification_gate.py
             test -f tools/imx952-digital-twin/equivalence/check_system_manager_contract.py
+            test -f tools/imx952-digital-twin/equivalence/check_fusa_contract.py
             test -f tools/imx952-digital-twin/equivalence/generate_clock_permissions.py
             test -f tools/imx952-digital-twin/equivalence/generate_pinctrl_permissions.py
             test -f tools/imx952-digital-twin/equivalence/validate_boot_artifacts.py
@@ -220,6 +223,7 @@ jobs:
             test -f tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.template.json
             test -f tools/imx952-digital-twin/equivalence/contracts/imx952_clock_permissions.generated.json
             test -f tools/imx952-digital-twin/equivalence/contracts/imx952_pinctrl_permissions.contract.json
+            test -f tools/imx952-digital-twin/equivalence/contracts/imx952_fusa_priority_contract.json
             test -f tools/imx952-digital-twin/equivalence/DEEP_GAP_ANALYSIS.md
           fi
           test -f platforms/boards/nxp_imx952_evk_full.repl
